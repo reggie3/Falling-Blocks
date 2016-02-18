@@ -88,11 +88,25 @@ export class Candy extends ThreeItem.Box{
             0,
             this.dim.height * 2);
 
-        var leftCol = myRays.left.intersectObjects( Candy.candyMeshes );
-        var rightCol = myRays.right.intersectObjects( Candy.candyMeshes );
-        var upCol = myRays.up.intersectObjects( Candy.candyMeshes );
-        var downCol = myRays.down.intersectObjects( Candy.candyMeshes );
+        var collisionArrays = {left: null, right: null, up: null, down: null};
+        collisionArrays.left = myRays.left.intersectObjects( Candy.candyMeshes );
+        collisionArrays.right = myRays.right.intersectObjects( Candy.candyMeshes );
+        collisionArrays.up = myRays.up.intersectObjects( Candy.candyMeshes );
+        collisionArrays.down = myRays.down.intersectObjects( Candy.candyMeshes );
+        this.removeDuplicates(collisionArrays);
         
         debugger;
+     }
+     
+     private removeDuplicates(collisionArrays) {
+         for (var ray in collisionArrays) {
+             if (collisionArrays.hasOwnProperty(ray)) {
+                 for(var i = collisionArrays[ray].length - 1; i > collisionArrays[ray].length; i--) {
+                     if (collisionArrays[ray][i].distance ===  collisionArrays[ray][i - 1].distance) {
+                         collisionArrays[ray].splice(i, 1);
+                     }
+                 }
+             }
+         }
      }
 }
