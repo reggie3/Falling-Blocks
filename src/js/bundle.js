@@ -95,14 +95,14 @@
 	    scene.positionCamera(null, null, 5);
 	    var render = function () {
 	        requestAnimationFrame(render);
-	        //ThreeItem.ThreeItem.update();
+	        // ThreeItem.ThreeItem.update();
 	        Candy.Candy.update();
 	        if (ThreeItem.Box.getNumBoxesMoving() <= 0) {
 	            createBox(scene);
 	        }
 	        game.render(scene);
 	        // kill a random box to test if boxes drop after the one under them is removed from the scene
-	        // ThreeItem.Box.killRandom();
+	        ThreeItem.Box.killRandom();
 	    };
 	    createBox(scene);
 	    render();
@@ -112,7 +112,7 @@
 	    var max = xPositions.length; // right bound
 	    // get random number between them
 	    var xPos = xPositions[Math.floor(Math.random() * (max - min) + min)];
-	    console.log(xPos);
+	    //console.log(xPos);
 	    var candy = new Candy.Candy({
 	        width: blockWidth,
 	        x: xPos,
@@ -50804,37 +50804,130 @@
 	        this.mesh.candyID = this.thisCandyID;
 	        Candy.candyMeshes.push(this.mesh); // we'll need to shot rays against these later
 	        this.type = candy.name;
+	        Candy.candies[this.thisCandyID] = this;
 	        Candy.candyID++;
 	    }
 	    Candy.prototype.update = function () {
 	        _super.prototype.update.call(this);
 	        switch (this.movementStatus) {
 	            case "stopped":
-	                if (this.checkStatus !== "checked") {
-	                    this.checkForMatches();
-	                    this.checkStatus = "checked";
-	                }
-	                break;
-	            case "moving":
-	                this.checkStatus = "unchecked";
+	                this.normalizePosition(); // round the positions to the nearest 5 tenths
+	                var collisionMeshArrays = this.getCollisionMeshArrays();
+	                var adjacentCandies = this.getAdjacentcandies(collisionMeshArrays);
+	                this.checkForMatchingCandies(adjacentCandies);
+	                this.movementStatus = "checked";
 	                break;
 	        }
 	    };
-	    Candy.prototype.checkForMatches = function () {
+	    Candy.getCandyByID = function (id) {
+	        return Candy.candies[id];
+	    };
+	    /*********************************************************
+	     * check for matches around this blocks
+	     *  arrays is an object containing the intersected objects around this block
+	     */
+	    Candy.prototype.checkForMatchingCandies = function (arrays) {
+	    };
+	    /********************************************
+	     * return arrays containing the meshes surrounding this block
+	     *  returns an object containing the meshes to the left, right, up, and down a distance of two objects away
+	     */
+	    Candy.prototype.getCollisionMeshArrays = function () {
 	        var originPoint = this.mesh.position.clone();
 	        var myRays = { left: null, right: null, up: null, down: null };
 	        myRays.left = new THREE.Raycaster(originPoint, new THREE.Vector3(-1, 0, 0), 0, this.dim.width * 2);
 	        myRays.right = new THREE.Raycaster(originPoint, new THREE.Vector3(1, 0, 0), 0, this.dim.width * 2);
 	        myRays.up = new THREE.Raycaster(originPoint, new THREE.Vector3(0, 1, 0), 0, this.dim.height * 2);
 	        myRays.down = new THREE.Raycaster(originPoint, new THREE.Vector3(0, -1, 0), 0, this.dim.height * 2);
-	        var leftCol = myRays.left.intersectObjects(Candy.candyMeshes);
-	        var rightCol = myRays.right.intersectObjects(Candy.candyMeshes);
-	        var upCol = myRays.up.intersectObjects(Candy.candyMeshes);
-	        var downCol = myRays.down.intersectObjects(Candy.candyMeshes);
-	        debugger;
+	        var collisionArrays = { left: null, right: null, up: null, down: null };
+	        collisionArrays.left = myRays.left.intersectObjects(Candy.candyMeshes);
+	        collisionArrays.right = myRays.right.intersectObjects(Candy.candyMeshes);
+	        collisionArrays.up = myRays.up.intersectObjects(Candy.candyMeshes);
+	        collisionArrays.down = myRays.down.intersectObjects(Candy.candyMeshes);
+	        this.removeDuplicates(collisionArrays);
+	        this.removeNoncontiguousItems(collisionArrays);
+	        if (collisionArrays.down[0]) {
+	            this.bumpUpBottomDistance(collisionArrays.down);
+	        }
+	        return collisionArrays;
+	    };
+	    /*******************************************************
+	     * convert the adjacent meshes to candies to the left, right, up, down for two meshes away and 1 block surrounding this block (with this block in the middle)
+	     */
+	    Candy.prototype.getAdjacentcandies = function (arrays) {
+	        var adjacentCandies = {
+	            left: [],
+	            right: [],
+	            up: [],
+	            down: [],
+	            midHorz: [],
+	            midVert: []
+	        };
+	        if (arrays.left.length === 2) {
+	            adjacentCandies.left.push(Candy.getCandyByID(arrays.left[1].object.candyID), Candy.getCandyByID(arrays.left[0].object.candyID), this);
+	        }
+	        if (arrays.right.length === 2) {
+	            adjacentCandies.right.push(this, Candy.getCandyByID(arrays.right[0].object.candyID), Candy.getCandyByID(arrays.right[1].object.candyID));
+	        }
+	        if (arrays.up.length === 2) {
+	            adjacentCandies.up.push(Candy.getCandyByID(arrays.up[1].object.candyID), Candy.getCandyByID(arrays.up[0].object.candyID), this);
+	        }
+	        if (arrays.down.length === 2) {
+	            adjacentCandies.down.push(this, Candy.getCandyByID(arrays.down[0].object.candyID), Candy.getCandyByID(arrays.down[1].object.candyID));
+	        }
+	        if ((arrays.left.length >= 1) && (arrays.right.length >= 1)) {
+	            adjacentCandies.midHorz.push(Candy.getCandyByID(arrays.left[0].object.candyID), this, Candy.getCandyByID(arrays.right[0].object.candyID));
+	        }
+	        if ((arrays.up.length >= 1) && (arrays.down.length >= 1)) {
+	            adjacentCandies.midVert.push(Candy.getCandyByID(arrays.up[0].object.candyID), this, Candy.getCandyByID(arrays.down[0].object.candyID));
+	        }
+	        return adjacentCandies;
+	    };
+	    /*************************************
+	     * normalize the position so that blocks are centered on the nearest 5 tenths location
+	     */
+	    Candy.prototype.normalizePosition = function () {
+	        this.mesh.position.x = Math.ceil(this.mesh.position.x * 50) / 50;
+	        this.mesh.position.y = Math.ceil(this.mesh.position.y * 50) / 50;
+	        this.mesh.position.z = Math.ceil(this.mesh.position.z * 50) / 50;
+	        console.log("Normalized Pos = " + this.mesh.position.x + ", " + this.mesh.position.y + ", " + this.mesh.position.z);
+	    };
+	    /*********************************
+	     * Ensure the distance between the center of this block and the one below it is exactly equal to one block
+	     */
+	    Candy.prototype.bumpUpBottomDistance = function (array) {
+	        if (array[0].distance < this.dim.height) {
+	            this.mesh.position.y = array[0].object.position.y + this.dim.height;
+	        }
+	    };
+	    /****************************************
+	     * Remove duplicate items from the detected items arrays
+	     */
+	    Candy.prototype.removeDuplicates = function (collisionArrays) {
+	        for (var ray in collisionArrays) {
+	            if (collisionArrays.hasOwnProperty(ray)) {
+	                for (var i = collisionArrays[ray].length - 1; i > 0; i--) {
+	                    if (collisionArrays[ray][i].object.candyID === collisionArrays[ray][i - 1].object.candyID) {
+	                        collisionArrays[ray].splice(i, 1);
+	                    }
+	                }
+	            }
+	        }
+	    };
+	    /****************************************
+	     * empty out arrays that dont detect an item immediately next to this block
+	     */
+	    Candy.prototype.removeNoncontiguousItems = function (collisionArrays) {
+	        for (var ray in collisionArrays) {
+	            if (collisionArrays.hasOwnProperty(ray)) {
+	                if ((collisionArrays[ray][0]) && (collisionArrays[ray][0].distance > this.dim.width)) {
+	                    collisionArrays[ray] = [];
+	                }
+	            }
+	        }
 	    };
 	    Candy.candyID = 0;
-	    Candy.candie = {};
+	    Candy.candies = {};
 	    Candy.candyMeshes = [];
 	    return Candy;
 	})(ThreeItem.Box);

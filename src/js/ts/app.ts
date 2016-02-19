@@ -51,7 +51,7 @@ function createGame(){
     scene.positionCamera(null, null, 5);
     var render = function () {
         requestAnimationFrame( render );
-        //ThreeItem.ThreeItem.update();
+        // ThreeItem.ThreeItem.update();
         Candy.Candy.update();
 
         if (ThreeItem.Box.getNumBoxesMoving() <= 0){
@@ -60,7 +60,7 @@ function createGame(){
 
         game.render(scene);
         // kill a random box to test if boxes drop after the one under them is removed from the scene
-        // ThreeItem.Box.killRandom();
+        ThreeItem.Box.killRandom();
     };
      createBox(scene);
     render();
@@ -72,7 +72,7 @@ function createBox(scene) {
     // get random number between them
     var xPos = xPositions[Math.floor(Math.random() * (max -min) + min )];
 
-    console.log(xPos);
+    //console.log(xPos);
     var candy = new Candy.Candy(
     {
         width: blockWidth,
