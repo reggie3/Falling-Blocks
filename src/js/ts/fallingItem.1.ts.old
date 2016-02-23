@@ -1,0 +1,275 @@
+/// <reference path="./defs/three/three.d.ts" />
+/// <reference path="./defs/tween.js/tween.js.d.ts" />
+
+import * as TWEEN from "tween.js";
+import * as THREE from "three";
+import ThreeItem = require ("./threeItem");
+
+export class FallingItem extends ThreeItem.ThreeItem {
+    static FallingItemID: number = 0;
+    static FallingItems = {};
+    static moveQueue = []; //a FIFO move queue that is executed by the currently falling block
+    thisFallingItemID: number;
+    movementStatus = "falling";
+    type;
+    fallingSpeed = .1;
+    scene;
+    dim = {width: null, height: null, depth: null};
+    movementArcData = {
+        pivotPoint : new THREE.Vector3(), // pivot point to be used for the movement animation
+        movementTime : 5,    // seconds it takes for the side movement animation to complete
+        movementArc : Math.PI,
+        pos : {x: null, y:null},
+        totalRadiansMoved: 0,
+        newPos: {x: null, y:null},
+        vertTween: null,
+        horzTween: null,
+        vertTweenComplete: false,
+        horzTweenComplete: false
+    }
+
+    constructor(options?) {
+        super();
+        this.thisFallingItemID = FallingItem.FallingItemID;
+        FallingItem.FallingItemID ++;
+
+        this.name =  options && options.name;
+        this.scene =  options && options.scene;
+        this.movementStatus = options && options.movementStatus || "falling";
+
+        // create the mesh
+        this.dim.width = options && options.width || 1;
+        this.dim.height = options && options.height || 1;
+        this.dim.depth = options && options.depth || 1;
+
+        this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
+
+        this.material = new THREE.MeshBasicMaterial( { color:  (options && options.color) ? options.color : new THREE.Color("rgb(255, 0, 0)")} );
+        this.mesh = new THREE.Mesh(this.geometry, this.material );
+        this.mesh.position.set(
+            options && options.x || 0,
+            options && options.y || 0,
+            options && options.z || 0
+        );
+        //console.log("FallingItem " + this.thisThreeItemID + " created");
+
+        // add this item to the array of physics items
+        FallingItem.FallingItems[this.thisFallingItemID] = this;
+
+        this.mesh.FallingItemID = this.thisFallingItemID;   // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the FallingItem
+        // console.log ("FallingItem " + this.thisFallingItemID + " created");
+    }
+
+    update(dt) {
+
+        //if this is the currently falling item check to see if it's been told to move
+        if((FallingItem.moveQueue.length > 0)&&(this.movementStatus  === "falling")){
+            switch(FallingItem.moveQueue[0]){
+                case "left":
+                    this.movementStatus = "moveLeft";
+                break;
+                case "right":
+                    this.movementStatus = "moveRight";
+                break;
+            }
+            FallingItem.moveQueue.shift();  // remove this directive from the queue
+        }
+
+        // falling item behavior is based on movement status
+        switch (this.movementStatus) {
+            case "falling":
+                this.mesh.position.y -= this.fallingSpeed;
+                if (this.checkForCollision()) {
+                    this.movementStatus = "stopped";
+                }
+            break;
+            case "stopped":
+                if (!this.checkForCollision()) {
+                    this.movementStatus = "falling";
+                }
+            break;
+
+
+            case "moveLeft":    // just received directive to move left
+            case "moveRight":   // just received directive to move right
+                // move left is the default.  make alterations for a move right later
+                // this.movementArcData.pivotPoint.copy(this.mesh.position);
+                // this.movementArcData.pivotPoint.x -= this.dim.width/2;
+                // this.movementArcData.originalPos.copy(this.mesh.position);
+                this.movementArcData.pos.x = this.mesh.position.x;
+                this.movementArcData.pos.y = this.mesh.position.y;
+
+                // y movement direction never changes
+                this.movementArcData.newPos.y = this.mesh.position.y + this.dim.height;
+
+                // default to moving left
+                this.movementArcData.newPos.x = this.mesh.position.x - this.dim.width;
+                this.movementStatus = "movingLeft";
+
+                // alter relevant stuf for move right
+                if(this.movementStatus === "moveRight") {
+                    this.movementArcData.newPos.x = this.mesh.position.x + this.dim.width;
+                      this.movementStatus = "movingRight";
+                }
+
+                var that = this;
+                this.movementArcData.vertTween = new TWEEN
+                    .Tween(this.movementArcData.pos.y)
+                    .to(this.movementArcData.newPos.y, this.movementArcData.movementTime * 1000)
+                    .repeat(1)
+                    .yoyo()
+                    .onUpdate(function(){
+                        that.mesh.position.y = that.movementArcData.pos.y;
+                        console.log("update y: " + that.movementArcData.pos.y);
+                    }(that))
+                    .onComplete(function(){
+                        that.movementArcData.vertTweenComplete = true;
+                    }(that))
+                    .start();
+
+                this.movementArcData.horzTween = new TWEEN
+                    .Tween(this.movementArcData.pos.x)
+                    .to(this.movementArcData.newPos.x, this.movementArcData.movementTime * 1000)
+                    .onUpdate(function(){
+                        that.mesh.position.x = that.movementArcData.pos.x;
+                        console.log("update x: " + that.movementArcData.pos.x);
+                    }(that))
+                    .onComplete(function(){
+                        that.movementArcData.horzTweenComplete = true;
+                    }(that))
+                    .start();
+
+
+
+
+                // console.log("%c*******************************************", "color:blue, font-weight:bold;");
+                // console.log("original mesh Pos : " + this.mesh.position.x + ", " +  this.mesh.position.y)
+            break;
+            // case "movingLeft":  // in the process of moving left
+            //     //console.group("Moving Left");
+
+            //     //console.log("pivot point : " + this.movementArcData.pivotPoint.x
+            //     //    + ", " + this.movementArcData.pivotPoint.y
+            //     //    + ", " + this.movementArcData.pivotPoint.z);
+            //     let startRadians = Math.PI/2;
+            //     // get the percentage of time this delta is equal to
+            //     let percentOfTime = dt/this.movementArcData.movementTime;
+            //     //console.log("percent of time : " + percentOfTime);
+
+            //     // get the number of radians to be moved in this percent of time
+            //     // make this negative since we are moving left
+            //     let radiansToMove = - this.movementArcData.movementArc * percentOfTime;
+            //     //console.log("rads to move : " + radiansToMove);
+            //     this.movementArcData.totalRadiansMoved += radiansToMove;
+
+            //     // calculate the current radian displacment
+            //     let currentDisplacementX = this.movementArcData.pivotPoint.x - this.mesh.position.x;
+            //     let currentDisplacementY = this.movementArcData.pivotPoint.y - this.mesh.position.y;
+            //     // console.log("current displacment : " + currentDisplacementX + ", " + currentDisplacementY);
+
+            //     let curRadians = startRadians - Math.atan(currentDisplacementX/currentDisplacementY);
+            //     // console.log("current Rad displacement : " + curRadians);
+            //     //curRadians = curRadians ? curRadians : 0;   //check to see if there is no displacement
+
+            //     // calculate the amount of x to move
+            //     let moveX = Math.cos(curRadians - radiansToMove) * this.dim.width / 2;
+            //     let moveY = Math.sin(curRadians - radiansToMove) * this.dim.height / 2;
+            //     // console.log("distance to move : " + moveX + ", " + moveY);
+
+            //     //calculate new x,y
+            //     let newX = this.movementArcData.pivotPoint.x + moveX;
+            //     let newY = this.movementArcData.pivotPoint.y + moveY;
+            //     // console.log("new Pos : " + newX + ", " + newY);
+
+            //     // change the mesh's postion
+            //     this.mesh.position.x = newX;
+            //     this.mesh.position.y = newY;
+            //     // console.log("new Mesh Pos : " +  this.mesh.position.x + ", " +  this.mesh.position.y);
+
+            //     console.log("total rads moved : "  + this.movementArcData.totalRadiansMoved);
+            //     if (Math.abs(this.movementArcData.totalRadiansMoved) >= this.movementArcData.movementArc){
+            //         this.mesh.position.y = this.movementArcData.originalPos.y
+            //         this.movementStatus = "fallng"
+            //     }
+
+
+            //     // make sure the new x is not below the pivot point x
+            //     console.groupEnd()
+            // break;
+
+            case "movingLeft":
+            case "movingRight":
+                this.movementArcData.vertTween.update(dt);
+                this.movementArcData.horzTween.update(dt);
+                console.log("updating tweens");
+                if ((this.movementArcData.vertTweenComplete)&&(this.movementArcData.horzTweenComplete)){
+                    this.movementStatus = "falling";
+                    console.log("tweens complete");
+                    //debugger;
+                }
+            break;
+            case "rigid":
+            break;
+            case "unmovable":
+            break;
+            case "kill":
+                this.killFallingItem();
+            break;
+
+        }
+
+        // check to see if the FallingItem is below the ground.  If it is then remove it from the scene
+        if (this.mesh.position.y < ThreeItem.ThreeItem.getItemByName("ground").mesh.position.y - 1) {
+            this.movementStatus = "kill";
+        }
+    }
+
+    public static addMove(direction: string){
+        FallingItem.moveQueue.push(direction);
+    }
+
+    public static killRandom(){
+        var iFallingItemStepper = 0;
+        if (Math.random() > .99){
+            var max = FallingItem.FallingItemID;
+            var min = 1;
+            var randFallingItem = Math.floor(Math.random() * (max  -min) + min );
+            if((FallingItem.FallingItems[randFallingItem]) && (FallingItem.FallingItems[randFallingItem].movementStatus === "stopped")) {
+                FallingItem.FallingItems[randFallingItem].movementStatus = "kill";
+            }
+        }
+    }
+
+    public static getNumFallingItemsMoving(): number{
+        var numMoving: number = 0;
+        for (var fallingItem in FallingItem.FallingItems){
+            if (FallingItem.FallingItems.hasOwnProperty(fallingItem)){
+                if (FallingItem.FallingItems[fallingItem].movementStatus === "falling"){
+                    numMoving ++;
+                }
+            }
+        }
+        return numMoving;
+    }
+
+    private checkForCollision(){
+        var raycaster = new THREE.Raycaster(
+            this.mesh.position,
+            new THREE.Vector3(0, -1, 0),
+            0,
+            this.dim.height/2
+        );
+        var intersects = raycaster.intersectObjects( this.scene.threeScene.children );
+        if(intersects.length>0){
+            return true;
+        }
+    }
+
+    protected killFallingItem(){
+        this.killThreeItem(this.thisThreeItemID);
+        this.scene.threeScene.remove(this.mesh);
+        this.movementStatus = "dead";
+        delete FallingItem.FallingItems[this.thisFallingItemID];
+    }
+}
+
