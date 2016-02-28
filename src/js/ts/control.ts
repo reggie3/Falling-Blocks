@@ -3,6 +3,8 @@
 import * as THREE from "three";
 import ThreeItem = require("./threeItem");
 
+import AssetManager = require("./assetManager");
+
 export class Control extends ThreeItem.ThreeItem{
     static controlID: number = 0;
     static controls = {};

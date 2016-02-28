@@ -3,7 +3,7 @@
 
 import * as TWEEN from "tween.js";
 import * as THREE from "three";
-import ThreeItem = require ("./threeItem");
+import ThreeItem = require("./threeItem");
 
 export class FallingItem extends ThreeItem.ThreeItem {
     static FallingItemID: number = 0;
@@ -13,16 +13,22 @@ export class FallingItem extends ThreeItem.ThreeItem {
     movementStatus = "falling";
     type;
     fallingSpeed = .1;
+    static fallFaster = false;
     screen; // the game screen this object is in
-    dim = {width: null, height: null, depth: null};
+    dim = { width: null, height: null, depth: null };
     tweenInfo = {
-        movementTime : .25,    // seconds it takes for the side movement animation to complete
-        pos : {x: null, y: null},
-        newPos: {x: null, y: null},
-        vertTween: null,
-        horzTween: null,
+        deathTime: .25,
+        movementTime: .25,    // seconds it takes for the side movement animation to complete
+        pos: { x: null, y: null },
+        newPos: { x: null, y: null },
+        // vertTween: null,
+        // horzTween: null,
+        // deathTween: null,
         vertTweenComplete: false,
         horzTweenComplete: false,
+        rotTweenComplete: false,
+        deathShrinkTweenComplete: false,
+        deathRotateTweenComplete: false,
         tweenUp: null,
         tweenDown: null,
         vertCount: 0
@@ -31,10 +37,10 @@ export class FallingItem extends ThreeItem.ThreeItem {
     constructor(options?) {
         super();
         this.thisFallingItemID = FallingItem.FallingItemID;
-        FallingItem.FallingItemID ++;
+        FallingItem.FallingItemID++;
 
-        this.name =  options && options.name;
-        this.screen =  options && options.screen;
+        this.name = options && options.name;
+        this.screen = options && options.screen;
         this.movementStatus = options && options.movementStatus || "falling";
 
         // create the mesh
@@ -44,8 +50,13 @@ export class FallingItem extends ThreeItem.ThreeItem {
 
         this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
 
-        this.material = new THREE.MeshBasicMaterial( { color:  (options && options.color) ? options.color : new THREE.Color("rgb(255, 0, 0)")} );
-        this.mesh = new THREE.Mesh(this.geometry, this.material );
+
+        this.material = new THREE.MeshPhongMaterial({
+             color: (options && options.color) ? options.color : new THREE.Color("rgb(255, 0, 0)"),
+             specular: 0x009900, shininess: 30, shading: THREE.FlatShading
+        });
+
+        this.mesh = new THREE.Mesh(this.geometry, this.material);
         this.mesh.position.set(
             options && options.x || 0,
             options && options.y || 0,
@@ -62,13 +73,15 @@ export class FallingItem extends ThreeItem.ThreeItem {
 
     update(dt, time) {
 
-        // if this is the currently falling item check to see if it's been told to move
-
-
-        // falling item behavior is based on movement status
+           // falling item behavior is based on movement status
         switch (this.movementStatus) {
             case "falling":
-                this.mesh.position.y -= this.fallingSpeed;
+                if (FallingItem.fallFaster) {
+                    this.mesh.position.y -= this.fallingSpeed * 5;
+                }
+                else {
+                    this.mesh.position.y -= this.fallingSpeed;
+                }
                 if (this.checkForCollision()) {
                     this.movementStatus = "stopped";
 
@@ -80,25 +93,20 @@ export class FallingItem extends ThreeItem.ThreeItem {
                     switch (FallingItem.moveQueue[0]) {
                         case "left":
                             this.movementStatus = "moveLeft";
-                        break;
+                            break;
                         case "right":
                             this.movementStatus = "moveRight";
-                        break;
+                            break;
                     }
                     FallingItem.moveQueue.shift();  // remove this directive from the queue
                 }
-            break;
+                break;
             case "stopped":
             case "checked":
                 if (!this.checkForCollision()) {
                     this.movementStatus = "falling";
-                    console.log("***** " + this.thisCandyID + ": falling reset *********");
                 }
-
-                this.tweenInfo.vertTween = null;
-                this.tweenInfo.horzTween = null;
-
-            break;
+                break;
 
             case "moveLeft":    // just received directive to move left
             case "moveRight":   // just received directive to move right
@@ -109,11 +117,11 @@ export class FallingItem extends ThreeItem.ThreeItem {
                     case "moveLeft":
                         this.movementStatus = "movingLeft";
                         this.tweenInfo.newPos.x = this.mesh.position.x - this.dim.width;
-                    break;
+                        break;
                     case "moveRight":
                         this.tweenInfo.newPos.x = this.mesh.position.x + this.dim.width;
-                      this.movementStatus = "movingRight";
-                    break;
+                        this.movementStatus = "movingRight";
+                        break;
                 }
 
                 // don't go beyond the borders of the field
@@ -122,49 +130,12 @@ export class FallingItem extends ThreeItem.ThreeItem {
                     // console.log("cur x: " + this.tweenInfo.pos.x + " | new x: " + this.tweenInfo.newPos.x);
                     // console.log("cur y: " + this.tweenInfo.pos.y + " | new y: " + this.tweenInfo.newPos.y);
                     // var that = this;
-                    let tweenElement = {
 
-                        item: this
-                    };
 
-                    let horzTween = new TWEEN.Tween(this.mesh.position)
-                        .to({x: this.tweenInfo.newPos.x}
-                            , this.tweenInfo.movementTime * 1000)
-                        .easing( TWEEN.Easing.Cubic.InOut )
-                        .onUpdate(function(){
-                            console.log("x : " + this.x);
-                        })
-                        .onComplete(function(){
-                            //this.item.horzTweenComplete();
-                        })
-                        .start();
+                    // run the sideways movment tween
+                    this.runSideMoveTween();
 
-                    // give the tween an identifier so that we can recognize when it is done
-                    horzTween.userData = {
-                        name : "horzTween",
-                        itemId : this.thisFallingItemID
-                    };
 
-                    let vertTween = this.mesh.position = new TWEEN.Tween(this.mesh.position)
-                        .to({y : this.tweenInfo.newPos.y}
-                            , this.tweenInfo.movementTime * 500)
-                        .repeat(1)
-                        .delay( 0 )
-                        .yoyo(true)
-                        .easing( TWEEN.Easing.Cubic.InOut )
-                        .onUpdate(function(){
-                            console.log("y : " + this.y);
-                        })
-                        .onComplete(function(){
-                            //this.item.vertTweenComplete();
-                        })
-                        .start();
-
-                    // give the tween an identifier so that we can recognize when it is done
-                    vertTween.userData = {
-                        name : "vertTween",
-                        itemId : this.thisFallingItemID
-                    };
                 }
                 else {
                     // just go back to falling if the user
@@ -173,32 +144,32 @@ export class FallingItem extends ThreeItem.ThreeItem {
                 }
 
 
-            break;
+                break;
             case "movingLeft":
             case "movingRight":
-
-                TWEEN.update(time);
-                console.log("tweens " + TWEEN.getAll().length);
-
-
-                // console.log("updating tweens " + this.tweenInfo.pos.x
-                 //   + ", " + this.tweenInfo.pos.y);
-                if (TWEEN.getAll().length === 0) {
-                     this.movementStatus = "falling";
-                    console.log("tweens complete");
-                    // debugger;
+                TWEEN.update();
+                if (this.sideTweenComplete()) {
+                    this.movementStatus = "falling";
                 }
-                else {
-                    console.log("here");
-                }
-            break;
+                break;
             case "rigid":
-            break;
+                break;
             case "unmovable":
-            break;
+                break;
             case "kill":
-                this.killFallingItem();
-            break;
+                this.runDeathTween();
+                this.movementStatus = "dying";
+                break;
+            case "dying":
+                TWEEN.update();
+                if ((this.tweenInfo.deathRotateTweenComplete) &&
+                    (this.tweenInfo.deathShrinkTweenComplete)) {
+                    this.movementStatus = "dead";
+                }
+                break;
+            case "dead":
+                this.resetDeadItem();
+                break;
         }
 
         // check to see if the FallingItem is below the ground.
@@ -208,11 +179,12 @@ export class FallingItem extends ThreeItem.ThreeItem {
         if (this.mesh.position.y < ground.mesh.position.y - 1) {
             this.movementStatus = "kill";
         }
+
         // check to see if the candy is below the ground.
         // If it is then make sure it is sitting on the ground
         if ((this.mesh.position.y < ground.mesh.position.y
-                + this.dim.height / 2
-                + ground.dim.height / 2) && (this.thisCandyID)) {
+            + this.dim.height / 2
+            + ground.dim.height / 2) && (this.hasOwnProperty("thisCandyID"))) {
             this.mesh.position.y = ground.mesh.position.y
                 + this.dim.height / 2
                 + ground.dim.height / 2;
@@ -224,14 +196,31 @@ export class FallingItem extends ThreeItem.ThreeItem {
     }
 
     public static killRandom() {
-        if (Math.random() > .99) {
+        if (Math.random() > .01) {
             let max = FallingItem.FallingItemID;
             let min = 1;
-            let randFallingItem = Math.floor(Math.random() * (max  - min) + min );
-            if ((FallingItem.FallingItems[randFallingItem]) && (FallingItem.FallingItems[randFallingItem].movementStatus === "stopped")) {
+            let randFallingItem = Math.floor(Math.random() * (max - min) + min);
+            if ((FallingItem.FallingItems[randFallingItem]) &&
+                ((FallingItem.FallingItems[randFallingItem].movementStatus === "stopped") ||
+                    (FallingItem.FallingItems[randFallingItem].movementStatus === "checked"))) {
                 FallingItem.FallingItems[randFallingItem].movementStatus = "kill";
             }
         }
+    }
+
+    public static getFallingItemByID(id: number) {
+        return FallingItem.FallingItems[id];
+    }
+
+    public static getFallingItemByName(name: string) {
+        for (let item in FallingItem.FallingItems) {
+            if (FallingItem.FallingItems.hasOwnProperty(item)) {
+                if (FallingItem.FallingItems[item].name === name) {
+                    return FallingItem.FallingItems[item]
+                }
+            }
+        }
+        return null;
     }
 
     public static getNumFallingItemsMoving(): number {
@@ -240,28 +229,28 @@ export class FallingItem extends ThreeItem.ThreeItem {
             if (FallingItem.FallingItems.hasOwnProperty(fallingItem)) {
                 // all of these statuses means something is falling
                 if (FallingItem.isMoving(FallingItem.FallingItems[fallingItem].movementStatus)) {
-                    numMoving ++;
+                    numMoving++;
                 }
             }
         }
         return numMoving;
     }
 
-    public static isMoving (movementStatus): boolean {
+    public static isMoving(movementStatus): boolean {
         if ((movementStatus === "falling")
             || (movementStatus === "movingLeft")
             || (movementStatus === "movingRight")
             || (movementStatus === "moveLeft")
             || (movementStatus === "moveRight")) {
-                return true;
+            return true;
         }
         else {
             return false;
         }
     }
 
-    private checkForCollision (): boolean {
-        if (this.movementStatus === "checked"){
+    private checkForCollision(): boolean {
+        if (this.movementStatus === "checked") {
             // console.log(this);
         }
         let raycaster = new THREE.Raycaster(
@@ -270,7 +259,7 @@ export class FallingItem extends ThreeItem.ThreeItem {
             0,
             this.dim.height / 2
         );
-        let intersects = raycaster.intersectObjects( this.screen.scene.children );
+        let intersects = raycaster.intersectObjects(this.screen.scene.children);
         if (intersects.length > 0) {
             return true;
         }
@@ -279,11 +268,108 @@ export class FallingItem extends ThreeItem.ThreeItem {
         }
     }
 
-    protected killFallingItem() {
+
+
+    private runDeathTween() {
+        let fallingItem = this;
+
+        let deathShrinkTween = new TWEEN.Tween(this.mesh.scale)
+            .to({ x: .1, y: .1, z: .1 }, this.tweenInfo.deathTime * 500)
+            .delay(0)
+            .onStart(function() {
+                fallingItem.tweenInfo.deathShrinkTweenComplete = false;
+            }, fallingItem)
+            .onUpdate(function() {
+                // console.log(this.x + ", " + this.y + ", " + this.z);
+            }, fallingItem)
+            .onComplete(function() {
+                fallingItem.tweenInfo.deathShrinkTweenComplete = true;
+            }, fallingItem)
+            .start();
+
+        let deathRotateTween = new TWEEN.Tween(this.mesh.rotation)
+            .to({ y: 2 * Math.PI }, this.tweenInfo.deathTime * 500)
+            .delay(0)
+            .onStart(function() {
+                fallingItem.tweenInfo.deathRotateTweenComplete = false;
+            }, fallingItem)
+            .onUpdate(function() {
+                // console.log(this.x + ", " + this.y + ", " + this.z);
+            }, fallingItem)
+            .onComplete(function() {
+                fallingItem.tweenInfo.deathRotateTweenComplete = true;
+            }, fallingItem)
+            .start();
+    }
+
+    protected resetDeadItem() {
         this.killThreeItem(this.thisThreeItemID);
         this.screen.scene.remove(this.mesh);
-        this.movementStatus = "dead";
-        delete FallingItem.FallingItems[this.thisFallingItemID];
+        this.mesh.scale.x = 1;
+        this.mesh.scale.y = 1;
+        this.mesh.scale.z = 1;
+        this.mesh.position.x = 6;
+        this.mesh.position.y = 10;
+        this.screen.scene.add(this.mesh);
+        this.movementStatus = "waiting";
+    }
+
+    private sideTweenComplete() {
+        return ((this.tweenInfo.vertTweenComplete)
+            && (this.tweenInfo.horzTweenComplete)
+            && (this.tweenInfo.rotTweenComplete));
+    }
+
+    private runSideMoveTween() {
+        let fallingItem = this;
+
+        let horzTween = new TWEEN.Tween(fallingItem.mesh.position)
+            .to({ x: fallingItem.tweenInfo.newPos.x }
+            , fallingItem.tweenInfo.movementTime * 1000)
+            .easing(TWEEN.Easing.Cubic.InOut)
+            .onStart(function() {
+                fallingItem.tweenInfo.horzTweenComplete = false;
+            }, fallingItem)
+            .onUpdate(function() {
+                // console.log("x : " + this.x);
+            })
+            .onComplete(function() {
+                fallingItem.tweenInfo.horzTweenComplete = true;
+            }, fallingItem)
+            .start();
+
+        let vertTween = new TWEEN.Tween(fallingItem.mesh.position)
+            .to({ y: fallingItem.tweenInfo.newPos.y }
+            , fallingItem.tweenInfo.movementTime * 500)
+            .repeat(1)
+            .delay(0)
+            .yoyo(true)
+            .easing(TWEEN.Easing.Cubic.InOut)
+            .onStart(function() {
+                fallingItem.tweenInfo.vertTweenComplete = false;
+            }, fallingItem)
+            .onUpdate(function() {
+                // console.log("y : " + this.y);
+            })
+            .onComplete(function() {
+                fallingItem.tweenInfo.vertTweenComplete = true;
+            }, fallingItem)
+            .start();
+        let rotTween = new TWEEN.Tween(fallingItem.mesh.rotation)
+            .to({ y: 2 * Math.PI }
+            , fallingItem.tweenInfo.movementTime * 1000)
+            .delay(0)
+            .easing(TWEEN.Easing.Cubic.InOut)
+            .onStart(function() {
+                fallingItem.tweenInfo.rotTweenComplete = false;
+            }, fallingItem)
+            .onUpdate(function() {
+                // console.log("y : " + this.y);
+            })
+            .onComplete(function() {
+                fallingItem.tweenInfo.rotTweenComplete = true;
+            }, fallingItem)
+            .start();
     }
 }
 

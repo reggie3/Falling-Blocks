@@ -14,6 +14,7 @@ export class Game {
 
         this.THREE = THREE;
         this.clock = new THREE.Clock(true);
+
         // init renderer
         this.renderer = new THREE.WebGLRenderer();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -28,14 +29,6 @@ export class Game {
         this.renderer.render(screen.scene, screen.camera);
     }
 
-
-    getDelta(){
-        this.now = Date.now();
-        this.delta = (this.now - this.then) / 1000; // seconds since last frame
-        this.then = this.now;
-
-        return this.delta;
-    }
 }
 
 // an item in the game.  meant to be a superclass for actual game objects

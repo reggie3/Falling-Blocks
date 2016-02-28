@@ -3,7 +3,7 @@ var gulp = require('gulp');
 
 var autoprefixer = require('gulp-autoprefixer');
 var connect = require('gulp-connect'); //create local and remote servers
-var plumber = require('gulp-plumber'); //used to pipe streams and prevent pipe 
+var plumber = require('gulp-plumber'); //used to pipe streams and prevent pipe
 var browserSync = require('browser-sync').create();
 var print = require('gulp-print');
 var gutil = require('gulp-util');
@@ -29,7 +29,7 @@ gulp.task('dist', function(){
 
 /*************************************
  * copy the ts def files that are in the typings to the ts source folder so that
- * we can use them during production 
+ * we can use them during production
  */
 gulp.task('tsdef', function(){
     gulp.src(conf.files.typings).pipe(print()).pipe(gulp.dest(conf.paths.tsdefs));
@@ -67,7 +67,7 @@ function onBuild(done){
 
 gulp.task('watch', function(){
     gulp.watch([conf.files.ts], ['wp']);
-    gulp.watch([conf.files.jade], ['jade']);
+    gulp.watch([conf.files.jade, conf.files.jdinc], ['jade']);
     gulp.watch([conf.files.sass], ['sass']);
     gulp.watch([conf.files.typings], ['tsdef']);
 });
@@ -77,7 +77,7 @@ gulp.task('watch', function(){
 */
 gulp.task('jade', function (callback) {
     var YOUR_LOCALS = {};
-    
+
     //get all the jade files in the jade directory and its subdirectory, but don't get jade includes
     var stream = gulp.src([conf.files.jade])
         .pipe(plumber({
@@ -89,7 +89,7 @@ gulp.task('jade', function (callback) {
             locals: YOUR_LOCALS
         }))
         .pipe(gulp.dest(conf.paths.base));
-        
+
     return stream;
 });
 
@@ -126,9 +126,9 @@ gulp.task('bs', function () {
         //watch for changes in the my javascript & vendor javascript, html, and css files & any asset changes
     gulp.watch(
      [conf.files.js, conf.files.html,conf.files.css]
-    , browserSync.reload);  
+    , browserSync.reload);
 });
-    
+
 //open dev files in server
 gulp.task('condev', function () {
     connect.server({
@@ -137,8 +137,8 @@ gulp.task('condev', function () {
         livereload: true
     });
 });
- 
-//open dist files in server 
+
+//open dist files in server
 gulp.task('condist', function () {
     connect.server({
         root: 'dist',
@@ -150,7 +150,7 @@ gulp.task('condist', function () {
 
 
 //Erro funciton that emits a beep sound and logs an error
-var onError = function (err) {  
+var onError = function (err) {
   gutil.beep();
   console.log(err);
 };

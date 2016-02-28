@@ -1,3 +1,5 @@
+@import 'buttons';
+
 $font-stack:    Helvetica, sans-serif;
 $primary-color: #921;
 
@@ -9,5 +11,79 @@ body {
    margin: 0;
    padding: 0;
    overflow-y: hidden; // hide vertical
-overflow-x: hidden; // hide horizontal
+    overflow-x: hidden; // hide horizontal
+}
+
+.overlay{
+    visibility: hidden;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-content: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+}
+
+.alignTop{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+
+    z-index: 11;
+}
+
+.alignBottom{
+    position: fixed;
+    bottom: 10px;
+    width: 100%;
+    overflow: visible;
+}
+
+$buttonBackgroundColor:#101010 ;
+$buttonForegroundColor: #585858 ;
+$buttonSize: 75%;
+$buttonBorderRadius: 50%;
+
+.controlContainer{
+    width: 90%;
+
+    align-content: center;
+  margin-left: auto ;
+  margin-right: auto ;
+
+}
+
+.floatLeft{
+    float: left;
+    width:33%;
+    text-align: center;
+
+}
+
+.controlTable{
+    width: 100%;
+    height: 50%;
+    padding-top: 15px;
+}
+.circleButton{
+    width: $buttonSize;
+    height: $buttonSize;
+    border-radius:$buttonBorderRadius;
+    -moz-border-radius: $buttonBorderRadius;
+    -webkit-border-radius: $buttonBorderRadius;
+    -khtml-border-radius: $buttonBorderRadius;
+          margin-left: auto ;
+  margin-right: auto ;
+
+}
+
+/* Create the animation blocks */
+@keyframes spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
 }

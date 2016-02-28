@@ -12,10 +12,18 @@ module.exports = {
 
         //chunkFilename: "[chunkhash].js"
     },
+    plugins: [
+        // new webpack.ProvidePlugin({
+        //     'createjs': 'imports?this=>global!exports?preloadjs!preloadjs',
+        // })
+    ],
     // Turn on sourcemaps
     devtool: 'source-map',
     resolve: {
-        extensions: ['', '.webpack.js', '.web.js', '.ts', '.js']
+        extensions: ['', '.webpack.js', '.web.js', '.ts', '.js'],
+        alias: {
+            'createjs' : '../preload.js'
+        }
     },
     //   // Add minification
     //   plugins: [

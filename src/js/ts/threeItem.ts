@@ -41,7 +41,7 @@ export class ThreeItem {
     public static update(dt, time) {
         for (let item in ThreeItem.threeItems) {
             if (ThreeItem.threeItems.hasOwnProperty(item)) {
-                ThreeItem.threeItems[item].update(dt);
+                ThreeItem.threeItems[item].update(dt, time);
             }
         }
     }

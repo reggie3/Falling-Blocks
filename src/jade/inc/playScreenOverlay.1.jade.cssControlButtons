@@ -1,0 +1,14 @@
+div(id="playScreenOverlay" class="overlay")
+    div(class="alignTop")
+        p top
+    div(class="alignBottom")
+        div(class="controlContainer")
+            div(class="floatLeft")
+                button(id="moveLeft" class="control circleButton leftButton")
+                    p left
+            div(class="floatLeft")
+                button(id="moveDown" class="control circleButton down")
+                    p right
+            div(class="floatLeft")
+                button(id="moveRight" class="control circleButton right")
+                    p down
