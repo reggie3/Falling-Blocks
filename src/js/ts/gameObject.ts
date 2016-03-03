@@ -1,23 +1,22 @@
 /// <reference path="./defs/three/three.d.ts" />
+import * as THREE from "three";
 
 export class Game {
     name: string;
     state: string;
     renderer;
-    THREE;
     now;    // now time
     then;   // previous time
     delta;  // time difference
     clock;
 
-    constructor(THREE) {
+    constructor(width, height) {
 
-        this.THREE = THREE;
         this.clock = new THREE.Clock(true);
 
         // init renderer
         this.renderer = new THREE.WebGLRenderer();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(width, height);
         document.body.appendChild(this.renderer.domElement);
 
 

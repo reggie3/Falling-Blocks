@@ -5,7 +5,7 @@ import ThreeItem = require("./threeItem");
 
 import AssetManager = require("./assetManager");
 
-export class Control extends ThreeItem.ThreeItem{
+export class Control extends ThreeItem.ThreeItem {
     static controlID: number = 0;
     static controls = {};
     static meshes = []; // an array of meshes to use in touch events
@@ -67,6 +67,7 @@ export class Control extends ThreeItem.ThreeItem{
             options && options.size || null,
             options && options.size || null
         );
+
         this.material = new THREE.MeshBasicMaterial({
             color: options && options.color || null
         });
@@ -75,7 +76,8 @@ export class Control extends ThreeItem.ThreeItem{
     private createCircleMesh(options?) {
         this.geometry = new THREE.CircleGeometry(options && options.size || null, options && options.segments || null);
         this.material = new THREE.MeshBasicMaterial({
-            color: options && options.color || null
+            // color: options && options.color || null,
+            map: AssetManager.AssetManager.getAssetByTag(this.name).texture
         });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
     }

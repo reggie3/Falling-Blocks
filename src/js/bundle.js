@@ -56,6 +56,10 @@
 	/// <reference path="./assetManager.ts" />
 	/// <reference path="./gameObject.ts" />
 	/// <reference path="./gameScreen.ts" />
+	/// <reference path="./settingsScreen.ts" />
+	/// <reference path="./playScreen.ts" />
+	/// <reference path="./loadingScreen.ts" />
+	/// <reference path="./startScreen.ts" />
 	/// <reference path="./threeItem.ts" />
 	/// <reference path="./control.ts" />
 	/// <reference path="./fallingItem.ts" />
@@ -65,9 +69,13 @@
 	var AssetManager = __webpack_require__(5);
 	var GameObject = __webpack_require__(8);
 	var GameScreen = __webpack_require__(9);
-	var Candy = __webpack_require__(10);
-	var Control = __webpack_require__(14);
-	var FallingItem = __webpack_require__(11);
+	var SettingsScreen = __webpack_require__(10);
+	var StartScreen = __webpack_require__(11);
+	var LoadingScreen = __webpack_require__(12);
+	var PlayScreen = __webpack_require__(13);
+	var Candy = __webpack_require__(17);
+	var Control = __webpack_require__(16);
+	var FallingItem = __webpack_require__(18);
 	var game;
 	var playScreen;
 	var loadingScreen;
@@ -77,10 +85,9 @@
 	var clock;
 	var dt = 1 / 60;
 	var xPositions = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
-	var numBlocksWide = 10;
-	var blockWidth = 1;
-	var controls = { leftButton: null, downButton: null, rightButton: null };
-	var width = 20;
+	var numBlocksOnPlayfield = 10;
+	var numBlocksAcrossScene = 20;
+	var blockWidth = 10;
 	var hammer; // use to catch mouse and touch events with Hammer
 	var time;
 	var delta;
@@ -101,19 +108,52 @@
 	    createGame();
 	});
 	function createGame() {
-	    game = new GameObject.Game(THREE);
-	    // create the screens
-	    buildPlayScreen();
-	    buildLoadingScreen();
-	    buildSettingsScreen();
-	    buildStartScreen();
+	    GameScreen.Screen.init();
+	    game = new GameObject.Game(GameScreen.Screen.getWidth(), GameScreen.Screen.getHeight());
+	    blockWidth = Math.floor(GameScreen.Screen.getWidth() / numBlocksAcrossScene);
+	    loadingScreen = new LoadingScreen.LoadingScreen({
+	        name: "loadingScreen",
+	        overlay: "loadingOverlay",
+	        // order: 1,
+	        blockWidth: blockWidth,
+	        screenDim: {
+	            width: GameScreen.Screen.getWidth(),
+	            height: GameScreen.Screen.getHeight()
+	        }
+	    });
 	    // loadingScreen.show();
 	    GameScreen.Screen.setCurrentcreen(loadingScreen);
-	    AssetManager.AssetManager.loadAssets(function () {
-	        console.log("loaded");
+	    AssetManager.AssetManager.loadAssets(function (numberAssets) {
+	        console.log(numberAssets + " assets");
+	        // the loading screen progress bar will increment for each asset and each of the screens
+	        loadingScreen.initProgressBar(numberAssets + 3);
+	    }, function () {
+	        loadingScreen.updateProgressBar(1);
 	    }, function () {
 	        console.log("finished");
-	        GameScreen.Screen.setCurrentcreen(playScreen);
+	        // create the screens
+	        playScreen = new PlayScreen.PlayScreen({
+	            name: "playScreen",
+	            overlay: "playScreenOverlay",
+	            order: 1,
+	            blockWidth: blockWidth
+	        });
+	        loadingScreen.updateProgressBar(1);
+	        startScreen = new StartScreen.StartScreen({
+	            name: "startScreen",
+	            overlay: "startOverlay",
+	            order: 0,
+	            blockWidth: blockWidth
+	        });
+	        loadingScreen.updateProgressBar(1);
+	        settingsScreen = new SettingsScreen.SettingsScreen({
+	            name: "settingsScreen",
+	            overlay: "settingsOverlay",
+	            // order: 4,
+	            blockWidth: blockWidth
+	        });
+	        loadingScreen.updateProgressBar(1);
+	        // GameScreen.Screen.setCurrentcreen(playScreen);
 	    });
 	    var render = function () {
 	        requestAnimationFrame(render);
@@ -135,100 +175,17 @@
 	    var min = 0; // left bound
 	    var max = xPositions.length; // right bound
 	    // get random number between them
-	    var xPos = xPositions[Math.floor(Math.random() * (max - min) + min)];
+	    var xPos = blockWidth * xPositions[Math.floor(Math.random() * (max - min) + min)];
 	    // console.log(xPos);
 	    var candy = new Candy.Candy({
-	        width: blockWidth,
+	        width: blockWidth, height: blockWidth, depth: blockWidth,
 	        x: xPos,
-	        y: 30,
+	        y: 20 * blockWidth,
 	        name: "candy",
 	        screen: playScreen,
 	        customMaterial: true
 	    });
 	    playScreen.add(candy);
-	}
-	/*******************************************************************
-	 * Create the start screen
-	 */
-	function buildLoadingScreen() {
-	    loadingScreen = new GameScreen.Screen({
-	        width: width,
-	        height: 9 * width / 6,
-	        name: "loadingScreen",
-	        overlay: "loadingOverlay",
-	    });
-	}
-	/*******************************************************************
-	 * Create the start screen
-	 */
-	function buildStartScreen() {
-	    startScreen = new GameScreen.Screen({
-	        width: width,
-	        height: 9 * width / 6,
-	        name: "startScreen",
-	        overlay: "startOverlay",
-	        order: 0
-	    });
-	}
-	/**************************************************************************
-	 * Create the settings screen
-	 */
-	function buildSettingsScreen() {
-	    settingsScreen = new GameScreen.Screen({
-	        width: width,
-	        height: 9 * width / 6,
-	        name: "settingsScreen",
-	        overlay: "settingsOverlay",
-	    });
-	}
-	/****************************************************************
-	 * Create the action screen
-	 */
-	function buildPlayScreen() {
-	    playScreen = new GameScreen.Screen({
-	        width: width,
-	        height: 9 * width / 6,
-	        name: "playScreen",
-	        overlay: "playScreenOverlay",
-	        order: 1
-	    });
-	    // create the ground
-	    var ground = new FallingItem.FallingItem({
-	        width: 11,
-	        height: 1,
-	        depth: 1,
-	        x: 0,
-	        y: -.5,
-	        z: 0,
-	        color: new THREE.Color("rgb(0,140,0)"),
-	        name: "ground",
-	        movementStatus: "unmovable",
-	        screen: playScreen
-	    });
-	    playScreen.add(ground);
-	    // create controls
-	    controls.leftButton = new Control.Control("circle", "leftButton", new THREE.Vector3(-4, -3, 2), {
-	        size: 1.5,
-	        segments: 32,
-	        color: new THREE.Color("rgb(140,140,0)")
-	    });
-	    controls.downButton = new Control.Control("circle", "downButton", new THREE.Vector3(0, -3, 2), {
-	        size: 1.5,
-	        segments: 32,
-	        color: new THREE.Color("rgb(140,140,0)")
-	    });
-	    controls.rightButton = new Control.Control("circle", "rightButton", new THREE.Vector3(4, -3, 2), {
-	        size: 1.5,
-	        segments: 32,
-	        color: new THREE.Color("rgb(140,140,0)")
-	    });
-	    for (var control in controls) {
-	        if (controls.hasOwnProperty(control)) {
-	            playScreen.add(controls[control]);
-	        }
-	    }
-	    // center the camera
-	    playScreen.positionCamera(null, 10, 10);
 	}
 	/***********************************************************************
 	 * User defined event handlers
@@ -311,11 +268,11 @@
 	        switch (controlName) {
 	            case "leftButton":
 	                console.log("left");
-	                FallingItem.FallingItem.moveQueue.push("left");
+	                FallingItem.FallingItem.addMove("left");
 	                break;
 	            case "rightButton":
 	                console.log("right");
-	                FallingItem.FallingItem.moveQueue.push("right");
+	                FallingItem.FallingItem.addMove("right");
 	                break;
 	            case "downButton":
 	                console.log("down");
@@ -53322,9 +53279,11 @@
 	var AssetManager = (function () {
 	    function AssetManager() {
 	    }
-	    AssetManager.loadAssets = function (onProgress, onComplete) {
+	    AssetManager.loadAssets = function (onInit, onProgress, onComplete) {
 	        AssetManager.onProgress = onProgress;
 	        AssetManager.onComplete = onComplete;
+	        // send the total number of items that need to be loaded
+	        onInit(Object.keys(AssetManager.assets).length);
 	        _.forEach(AssetManager.assets, function (asset, key) {
 	            switch (asset.type) {
 	                case "texture":
@@ -53361,7 +53320,7 @@
 	        // Function when resource is loaded
 	        function (texture) {
 	            // do something with the texture
-	            var material = new THREE.MeshBasicMaterial({
+	            asset.material = new THREE.MeshBasicMaterial({
 	                map: texture
 	            });
 	            AssetManager.numAssetsLoaded++;
@@ -53385,6 +53344,9 @@
 	        //     }
 	        // );
 	    };
+	    AssetManager.getAssetByTag = function (tag) {
+	        return AssetManager.assets[tag];
+	    };
 	    AssetManager.prototype.loadSound = function (path) {
 	    };
 	    AssetManager.prototype.imageLoaded = function () {
@@ -53396,9 +53358,9 @@
 	    AssetManager.imgPath = "./../assets/graphics";
 	    AssetManager.soundPath = "./../assets/sounds";
 	    AssetManager.assets = {
-	        buttonLeft: { type: "texture", source: "./../assets/graphics/buttonLeft.png", tag: "buttonLeft" },
-	        buttonDown: { type: "texture", source: "./../assets/graphics/buttonDown.png", tag: "buttonDown" },
-	        buttonRight: { type: "texture", source: "./../assets/graphics/buttonRight.png", tag: "buttonRightt" }
+	        leftButton: { type: "texture", source: "./../assets/graphics/buttonLeft.png", tag: "buttonLeft" },
+	        downButton: { type: "texture", source: "./../assets/graphics/buttonDown.png", tag: "buttonDown" },
+	        rightButton: { type: "texture", source: "./../assets/graphics/buttonRight.png", tag: "buttonRightt" }
 	    };
 	    AssetManager.numAssetsToLoad = 0;
 	    AssetManager.numAssetsLoaded = 0;
@@ -65785,16 +65747,16 @@
 
 /***/ },
 /* 8 */
-/***/ function(module, exports) {
+/***/ function(module, exports, __webpack_require__) {
 
 	/// <reference path="./defs/three/three.d.ts" />
+	var THREE = __webpack_require__(3);
 	var Game = (function () {
-	    function Game(THREE) {
-	        this.THREE = THREE;
+	    function Game(width, height) {
 	        this.clock = new THREE.Clock(true);
 	        // init renderer
 	        this.renderer = new THREE.WebGLRenderer();
-	        this.renderer.setSize(window.innerWidth, window.innerHeight);
+	        this.renderer.setSize(width, height);
 	        document.body.appendChild(this.renderer.domElement);
 	        // console.log("new world created.");
 	        // console.log("new Game created");
@@ -65846,21 +65808,22 @@
 	            this.overlay = options.overlay;
 	        }
 	        this.scene = new THREE.Scene();
-	        this.camera = new THREE.OrthographicCamera(-options.width / 2, options.width / 2, options.height / 2, -options.height / 2, 0.1, 25);
+	        this.camera = new THREE.OrthographicCamera(-Screen.width / 2, Screen.width / 2, Screen.height / 2, -Screen.height / 2, 0.01, 25);
 	        // this.camera = new THREE.PerspectiveCamera(
 	        //     130,
 	        //     options.width / options.height,
 	        //     1, 50 );
 	        // LIGHTS
-	        this.ambLight = new THREE.AmbientLight(0xffffff);
+	        this.ambLight = new THREE.AmbientLight(0x444444);
 	        this.ambLight.position.set(0, 5, 5);
-	        // this.scene.add(this.ambLight );
-	        //
-	        this.dirLight = new THREE.DirectionalLight(0xffffff, 1);
-	        this.dirLight.color.setHSL(0.1, 1, 0.95);
-	        this.dirLight.position.set(-1, 1.75, 1);
-	        this.dirLight.position.multiplyScalar(50);
-	        this.scene.add(this.dirLight);
+	        this.scene.add(this.ambLight);
+	        this.lights.push(this.ambLight);
+	        // //
+	        // this.dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
+	        // this.dirLight.color.setHSL( 1, 1, 1 );
+	        // this.dirLight.position.set( -0, 0, 0 );
+	        // this.dirLight.position.multiplyScalar( 50 );
+	        // this.scene.add(this.dirLight );
 	        // console.log("scene " + Scene.sceneID  + " created");
 	        if (options.order) {
 	            Screen.screens[this.order] = this;
@@ -65869,6 +65832,19 @@
 	        }
 	        Screen.sceneID++;
 	    }
+	    Screen.init = function () {
+	        Screen.width = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+	        Screen.height = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+	        if (Screen.width > Screen.height) {
+	            Screen.width = 9 * Screen.height / 16;
+	        }
+	    };
+	    Screen.getWidth = function () {
+	        return Screen.width;
+	    };
+	    Screen.getHeight = function () {
+	        return Screen.height;
+	    };
 	    Screen.getCurrentScreen = function () {
 	        return Screen.currentScreen;
 	    };
@@ -65926,6 +65902,390 @@
 /* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var GameScreen = __webpack_require__(9);
+	var SettingsScreen = (function (_super) {
+	    __extends(SettingsScreen, _super);
+	    function SettingsScreen(options) {
+	        _super.call(this, options);
+	    }
+	    return SettingsScreen;
+	})(GameScreen.Screen);
+	exports.SettingsScreen = SettingsScreen;
+
+
+/***/ },
+/* 11 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var GameScreen = __webpack_require__(9);
+	var StartScreen = (function (_super) {
+	    __extends(StartScreen, _super);
+	    function StartScreen(options) {
+	        _super.call(this, options);
+	    }
+	    return StartScreen;
+	})(GameScreen.Screen);
+	exports.StartScreen = StartScreen;
+
+
+/***/ },
+/* 12 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var THREE = __webpack_require__(3);
+	var GameScreen = __webpack_require__(9);
+	var LoadingScreen = (function (_super) {
+	    __extends(LoadingScreen, _super);
+	    function LoadingScreen(options) {
+	        _super.call(this, options);
+	        this.pgBar = {
+	            mesh: null,
+	            geometry: null,
+	            material: null,
+	            numberItems: 0,
+	            width: 1,
+	            height: 25
+	        };
+	        this.minX = -100; // the width of the pogress bar will be twice the absolute value of this number
+	        this.numIncrements = 4;
+	        this.screenWidth = options.screenDim.width;
+	        this.screenHeight = options.screenDim.height;
+	        textGeo = new THREE.TextGeometry(text, {
+	            font: font,
+	            size: size,
+	            height: height,
+	            curveSegments: curveSegments,
+	            bevelThickness: bevelThickness,
+	            bevelSize: bevelSize,
+	            bevelEnabled: bevelEnabled,
+	            material: 0,
+	            extrudeMaterial: 1
+	        });
+	        // let pgBarGeometry = new THREE.PlaneGeometry(this.pgBar.width, this.pgBar.height, 32);
+	        // let pgBarMaterial = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
+	        // let pgBarMesh = new THREE.Mesh( pgBarGeometry , pgBarMaterial );
+	        // pgBarMesh.position.x = this.minX;
+	        // this.currentPgBar = pgBarMesh;
+	        // this.scene.add( this.currentPgBar );
+	        this.createLights();
+	        // center the camera
+	        this.positionCamera(0, 10, 18);
+	        // this.testProgressBar();
+	    }
+	    // numberItems is the number of increments for this progress bar
+	    LoadingScreen.prototype.initProgressBar = function (numberItems) {
+	        this.numIncrements = numberItems;
+	    };
+	    LoadingScreen.prototype.update = function (dt) {
+	        debugger;
+	    };
+	    LoadingScreen.prototype.testProgressBar = function () {
+	        var increment = 0;
+	        for (var i = 0; i < this.numIncrements; i++) {
+	            setTimeout(this.updateProgressBar(i + 1), 2000);
+	        }
+	    };
+	    LoadingScreen.prototype.updateProgressBar = function (increment) {
+	        LoadingScreen.incrementCounter += increment;
+	        console.log("increment " + increment + ", total " + LoadingScreen.incrementCounter);
+	        var incrementWidth = Math.abs(this.minX * 2 / this.numIncrements);
+	        this.scene.remove(this.currentPgBar);
+	        var barWidth = incrementWidth * LoadingScreen.incrementCounter;
+	        var pgBarGeometry = new THREE.PlaneGeometry(barWidth, this.pgBar.height, 32);
+	        var pgBarMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+	        var pgBarMesh = new THREE.Mesh(pgBarGeometry, pgBarMaterial);
+	        var xPos = this.minX + (LoadingScreen.incrementCounter * incrementWidth / 2);
+	        pgBarMesh.position.x = xPos;
+	        this.currentPgBar = pgBarMesh;
+	        this.scene.add(this.currentPgBar);
+	        console.log(xPos + " : " + barWidth);
+	    };
+	    LoadingScreen.prototype.createLights = function () {
+	        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
+	        directionalLight.position.set(0, 0, 20).normalize();
+	        this.scene.add(directionalLight);
+	    };
+	    LoadingScreen.incrementCounter = 0;
+	    return LoadingScreen;
+	})(GameScreen.Screen);
+	exports.LoadingScreen = LoadingScreen;
+
+
+/***/ },
+/* 13 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var THREE = __webpack_require__(3);
+	var GameScreen = __webpack_require__(9);
+	var StaticItem = __webpack_require__(14);
+	var Control = __webpack_require__(16);
+	var PlayScreen = (function (_super) {
+	    __extends(PlayScreen, _super);
+	    function PlayScreen(options) {
+	        _super.call(this, options);
+	        this.controls = { leftButton: null, downButton: null, rightButton: null };
+	        this.blockWidth = options.blockWidth;
+	        var groundY = -10 * this.blockWidth;
+	        // create the ground
+	        var ground = new StaticItem.StaticItem({
+	            width: this.blockWidth * 11,
+	            height: this.blockWidth,
+	            depth: this.blockWidth,
+	            x: 0,
+	            y: groundY,
+	            z: 0,
+	            color: new THREE.Color("rgb(0,140,0)"),
+	            name: "ground",
+	            screen: this
+	        });
+	        this.add(ground);
+	        // create controls
+	        var buttonYDisplacement = 2.5 * this.blockWidth;
+	        this.controls.leftButton = new Control.Control("circle", "leftButton", new THREE.Vector3(-5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
+	            size: this.blockWidth * 1.5,
+	            segments: 32,
+	            color: new THREE.Color("rgb(140,140,0)")
+	        });
+	        this.controls.downButton = new Control.Control("circle", "downButton", new THREE.Vector3(0, groundY - buttonYDisplacement, 0), {
+	            size: this.blockWidth * 1.5,
+	            segments: 32,
+	            color: new THREE.Color("rgb(140,140,0)")
+	        });
+	        this.controls.rightButton = new Control.Control("circle", "rightButton", new THREE.Vector3(5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
+	            size: this.blockWidth * 1.5,
+	            segments: 32,
+	            color: new THREE.Color("rgb(140,140,0)")
+	        });
+	        for (var control in this.controls) {
+	            if (this.controls.hasOwnProperty(control)) {
+	                this.add(this.controls[control]);
+	            }
+	        }
+	        this.createLights();
+	        // center the camera
+	        this.positionCamera(0, 10, 18);
+	    }
+	    PlayScreen.prototype.createLights = function () {
+	        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
+	        directionalLight.position.set(0, 0, 20).normalize();
+	        this.scene.add(directionalLight);
+	    };
+	    return PlayScreen;
+	})(GameScreen.Screen);
+	exports.PlayScreen = PlayScreen;
+
+
+/***/ },
+/* 14 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	/// <reference path="./defs/tween.js/tween.js.d.ts" />
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var THREE = __webpack_require__(3);
+	var ThreeItem = __webpack_require__(15);
+	var StaticItem = (function (_super) {
+	    __extends(StaticItem, _super);
+	    function StaticItem(options) {
+	        _super.call(this);
+	        this.dim = { width: null, height: null, depth: null };
+	        this.thisStaticItemID = StaticItem.StaticItemID;
+	        StaticItem.StaticItemID++;
+	        this.name = options && options.name;
+	        this.screen = options && options.screen;
+	        // create the mesh
+	        this.dim.width = options && options.width || 1;
+	        this.dim.height = options && options.height || 1;
+	        this.dim.depth = options && options.depth || 1;
+	        this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
+	        this.material = new THREE.MeshBasicMaterial({
+	            color: (options && options.color) ? options.color : new THREE.Color("rgb(255, 0, 0)")
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	        this.mesh.position.set(options && options.x || 0, options && options.y || 0, options && options.z || 0);
+	        // console.log("StaticItem " + this.thisThreeItemID + " created");
+	        // add this item to the array of physics items
+	        StaticItem.StaticItems[this.thisStaticItemID] = this;
+	        this.mesh.userData.StaticItemID = this.thisStaticItemID; // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the StaticItem
+	        // console.log ("StaticItem " + this.thisStaticItemID + " created");
+	    }
+	    StaticItem.prototype.update = function (dt, time) {
+	    };
+	    StaticItem.getStaticItemByID = function (id) {
+	        return StaticItem.StaticItems[id];
+	    };
+	    StaticItem.getStaticItemByName = function (name) {
+	        for (var item in StaticItem.StaticItems) {
+	            if (StaticItem.StaticItems.hasOwnProperty(item)) {
+	                if (StaticItem.StaticItems[item].name === name) {
+	                    return StaticItem.StaticItems[item];
+	                }
+	            }
+	        }
+	        return null;
+	    };
+	    StaticItem.StaticItemID = 0;
+	    StaticItem.StaticItems = {};
+	    return StaticItem;
+	})(ThreeItem.ThreeItem);
+	exports.StaticItem = StaticItem;
+
+
+/***/ },
+/* 15 */
+/***/ function(module, exports) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	var ThreeItem = (function () {
+	    function ThreeItem() {
+	        this.thisThreeItemID = ThreeItem.threeItemID;
+	        // store this physicsObject in an array for later
+	        ThreeItem.threeItems[this.thisThreeItemID] = this;
+	        // console.log("Object " + ThreeItem.threeItemID + " created.");
+	        ThreeItem.threeItemID++;
+	    }
+	    // get items by id
+	    ThreeItem.getItemByID = function (id) {
+	        return ThreeItem.threeItems[id];
+	    };
+	    // get items by name
+	    ThreeItem.getItemByName = function (name) {
+	        for (var item in ThreeItem.threeItems) {
+	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
+	                if (ThreeItem.threeItems[item].name === name) {
+	                    return ThreeItem.threeItems[item];
+	                }
+	            }
+	        }
+	    };
+	    // call the update function on every three item we've made
+	    ThreeItem.update = function (dt, time) {
+	        for (var item in ThreeItem.threeItems) {
+	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
+	                ThreeItem.threeItems[item].update(dt, time);
+	            }
+	        }
+	    };
+	    ThreeItem.prototype.killThreeItem = function (id) {
+	        delete ThreeItem.threeItems[id];
+	    };
+	    ThreeItem.threeItemID = 0;
+	    ThreeItem.threeItems = {};
+	    return ThreeItem;
+	})();
+	exports.ThreeItem = ThreeItem;
+
+
+/***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var THREE = __webpack_require__(3);
+	var ThreeItem = __webpack_require__(15);
+	var AssetManager = __webpack_require__(5);
+	var Control = (function (_super) {
+	    __extends(Control, _super);
+	    function Control(shape, name, pos, options) {
+	        _super.call(this);
+	        this.thisControlID = Control.controlID;
+	        this.name = name;
+	        switch (shape) {
+	            case "sphere":
+	                this.createSphereMesh(options);
+	                break;
+	            case "circle":
+	                this.createCircleMesh(options);
+	                break;
+	            case "square":
+	            case "box":
+	                this.createBoxMesh(options);
+	                break;
+	        }
+	        this.mesh.position.set(pos.x, pos.y, pos.z);
+	        this.mesh.userData.controlID = this.thisControlID;
+	        Control.controls[this.thisControlID] = this;
+	        Control.meshes.push(this.mesh);
+	        Control.controlID++;
+	    }
+	    Control.getControlByID = function (id) {
+	        return Control.controls[id];
+	    };
+	    Control.prototype.getControlByName = function (name) {
+	        for (var control in Control.controls) {
+	            if (Control.controls.hasOwnProperty(control)) {
+	                if (Control.controls[control].name === name) {
+	                    return Control.controls[control];
+	                }
+	            }
+	        }
+	    };
+	    Control.prototype.createSphereMesh = function (options) {
+	        this.geometry = new THREE.SphereGeometry(options && options.size || null);
+	        this.material = new THREE.MeshBasicMaterial({
+	            color: options && options.color || null
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	    };
+	    Control.prototype.createBoxMesh = function (options) {
+	        this.geometry = new THREE.BoxGeometry(options && options.size || null, options && options.size || null, options && options.size || null);
+	        this.material = new THREE.MeshBasicMaterial({
+	            color: options && options.color || null
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	    };
+	    Control.prototype.createCircleMesh = function (options) {
+	        this.geometry = new THREE.CircleGeometry(options && options.size || null, options && options.segments || null);
+	        this.material = new THREE.MeshBasicMaterial({
+	            // color: options && options.color || null,
+	            map: AssetManager.AssetManager.getAssetByTag(this.name).texture
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	    };
+	    Control.prototype.update = function () {
+	    };
+	    Control.controlID = 0;
+	    Control.controls = {};
+	    Control.meshes = []; // an array of meshes to use in touch events
+	    return Control;
+	})(ThreeItem.ThreeItem);
+	exports.Control = Control;
+
+
+/***/ },
+/* 17 */
+/***/ function(module, exports, __webpack_require__) {
+
 	/// <reference path="./defs/three/three.d.ts" />
 	/// <reference path="./fallingItem.ts" />
 	var __extends = (this && this.__extends) || function (d, b) {
@@ -65934,7 +66294,7 @@
 	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 	};
 	var THREE = __webpack_require__(3);
-	var FallingItem = __webpack_require__(11);
+	var FallingItem = __webpack_require__(18);
 	var Candy = (function (_super) {
 	    __extends(Candy, _super);
 	    function Candy(options) {
@@ -65966,7 +66326,22 @@
 	        var min = 0; // left bound
 	        var max = this.candyTypes.length; // right bound
 	        var candy = this.candyTypes[Math.floor(Math.random() * (max - min) + min)];
+	        // create the mesh
+	        this.dim.width = options && options.width || 1;
+	        this.dim.height = options && options.height || 1;
+	        this.dim.depth = options && options.depth || 1;
+	        // this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
+	        this.geometry = new THREE.SphereGeometry(this.dim.width / 2, 16, 16);
+	        this.material = new THREE.MeshPhongMaterial({
+	            color: candy.color,
+	            specular: candy.color,
+	            shininess: 50,
+	            shading: THREE.SmoothShading
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	        this.mesh.position.set(options && options.x || 0, options && options.y || 0, options && options.z || 0);
 	        // this.mesh.material.color.setHex(candy.color);
+	        this.mesh.userData.FallingItemID = this.thisFallingItemID; // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the FallingItem
 	        this.mesh.userData.candyID = this.thisCandyID;
 	        Candy.candyMeshes.push(this.mesh); // we'll need to shot rays against these later
 	        this.type = candy.name;
@@ -66145,7 +66520,7 @@
 
 
 /***/ },
-/* 11 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/// <reference path="./defs/three/three.d.ts" />
@@ -66155,15 +66530,16 @@
 	    function __() { this.constructor = d; }
 	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 	};
-	var TWEEN = __webpack_require__(12);
+	var TWEEN = __webpack_require__(19);
 	var THREE = __webpack_require__(3);
-	var ThreeItem = __webpack_require__(13);
+	var ThreeItem = __webpack_require__(15);
 	var FallingItem = (function (_super) {
 	    __extends(FallingItem, _super);
 	    function FallingItem(options) {
 	        _super.call(this);
 	        this.movementStatus = "falling";
-	        this.fallingSpeed = .1;
+	        this.fallingSpeed = 100;
+	        this.fallFasterMultiplier = 5;
 	        this.dim = { width: null, height: null, depth: null };
 	        this.tweenInfo = {
 	            deathTime: .25,
@@ -66187,39 +66563,46 @@
 	        this.name = options && options.name;
 	        this.screen = options && options.screen;
 	        this.movementStatus = options && options.movementStatus || "falling";
-	        // create the mesh
-	        this.dim.width = options && options.width || 1;
-	        this.dim.height = options && options.height || 1;
-	        this.dim.depth = options && options.depth || 1;
-	        this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
-	        this.material = new THREE.MeshPhongMaterial({
-	            color: (options && options.color) ? options.color : new THREE.Color("rgb(255, 0, 0)"),
-	            specular: 0x009900, shininess: 30, shading: THREE.FlatShading
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	        this.mesh.position.set(options && options.x || 0, options && options.y || 0, options && options.z || 0);
 	        // console.log("FallingItem " + this.thisThreeItemID + " created");
 	        // add this item to the array of physics items
 	        FallingItem.FallingItems[this.thisFallingItemID] = this;
-	        this.mesh.FallingItemID = this.thisFallingItemID; // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the FallingItem
 	        // console.log ("FallingItem " + this.thisFallingItemID + " created");
 	    }
 	    FallingItem.prototype.update = function (dt, time) {
 	        // falling item behavior is based on movement status
 	        switch (this.movementStatus) {
 	            case "falling":
+	                var ground = ThreeItem.ThreeItem.getItemByName("ground");
 	                if (FallingItem.fallFaster) {
-	                    this.mesh.position.y -= this.fallingSpeed * 5;
+	                    this.mesh.position.y -= this.fallingSpeed * this.fallFasterMultiplier * dt;
 	                }
 	                else {
-	                    this.mesh.position.y -= this.fallingSpeed;
+	                    this.mesh.position.y -= this.fallingSpeed * dt;
 	                }
+	                // don't let the blocks be moved to a point below the ground
+	                if ((this.mesh.position.y < ground.mesh.position.y
+	                    + this.dim.height / 2
+	                    + ground.dim.height / 2) && (this.hasOwnProperty("thisCandyID"))) {
+	                    // move the box up and then tell it to stop moving
+	                    this.mesh.position.y = ground.mesh.position.y
+	                        + this.dim.height / 2
+	                        + ground.dim.height / 2;
+	                    this.movementStatus = "stopped";
+	                    // empty the move queue so that the next block starts out with a new slate
+	                    FallingItem.moveQueue = [];
+	                    // console.log("move queue emptied 1");
+	                    break;
+	                }
+	                // check to see if the block has collided with anything
 	                if (this.checkForCollision()) {
 	                    this.movementStatus = "stopped";
 	                    // empty the move queue so that the next block starts out with a new slate
 	                    FallingItem.moveQueue = [];
+	                    // console.log("move queue emptied 2");
+	                    break;
 	                }
-	                else if (FallingItem.moveQueue.length > 0) {
+	                // check to see if we've been told to move left or right
+	                if (FallingItem.moveQueue.length > 0) {
 	                    switch (FallingItem.moveQueue[0]) {
 	                        case "left":
 	                            this.movementStatus = "moveLeft";
@@ -66229,6 +66612,7 @@
 	                            break;
 	                    }
 	                    FallingItem.moveQueue.shift(); // remove this directive from the queue
+	                    break;
 	                }
 	                break;
 	            case "stopped":
@@ -66240,7 +66624,7 @@
 	            case "moveLeft": // just received directive to move left
 	            case "moveRight":
 	                // y movement direction never changes
-	                this.tweenInfo.newPos.y = this.mesh.position.y + this.dim.height * 3;
+	                this.tweenInfo.newPos.y = this.mesh.position.y + this.dim.height;
 	                switch (this.movementStatus) {
 	                    case "moveLeft":
 	                        this.movementStatus = "movingLeft";
@@ -66252,7 +66636,7 @@
 	                        break;
 	                }
 	                // don't go beyond the borders of the field
-	                if ((this.tweenInfo.newPos.x >= -5) && (this.tweenInfo.newPos.x <= 5)) {
+	                if ((this.tweenInfo.newPos.x >= -5 * this.dim.width) && (this.tweenInfo.newPos.x <= 5 * this.dim.width)) {
 	                    // console.log("cur x: " + this.tweenInfo.pos.x + " | new x: " + this.tweenInfo.newPos.x);
 	                    // console.log("cur y: " + this.tweenInfo.pos.y + " | new y: " + this.tweenInfo.newPos.y);
 	                    // var that = this;
@@ -66290,22 +66674,6 @@
 	            case "dead":
 	                this.resetDeadItem();
 	                break;
-	        }
-	        // check to see if the FallingItem is below the ground.
-	        // If it is then remove it from the scene
-	        // this was originally used before the ground stopped falling items
-	        var ground = ThreeItem.ThreeItem.getItemByName("ground");
-	        if (this.mesh.position.y < ground.mesh.position.y - 1) {
-	            this.movementStatus = "kill";
-	        }
-	        // check to see if the candy is below the ground.
-	        // If it is then make sure it is sitting on the ground
-	        if ((this.mesh.position.y < ground.mesh.position.y
-	            + this.dim.height / 2
-	            + ground.dim.height / 2) && (this.hasOwnProperty("thisCandyID"))) {
-	            this.mesh.position.y = ground.mesh.position.y
-	                + this.dim.height / 2
-	                + ground.dim.height / 2;
 	        }
 	    };
 	    FallingItem.addMove = function (direction) {
@@ -66361,8 +66729,6 @@
 	        }
 	    };
 	    FallingItem.prototype.checkForCollision = function () {
-	        if (this.movementStatus === "checked") {
-	        }
 	        var raycaster = new THREE.Raycaster(this.mesh.position, new THREE.Vector3(0, -1, 0), 0, this.dim.height / 2);
 	        var intersects = raycaster.intersectObjects(this.screen.scene.children);
 	        if (intersects.length > 0) {
@@ -66405,11 +66771,11 @@
 	        this.killThreeItem(this.thisThreeItemID);
 	        this.screen.scene.remove(this.mesh);
 	        this.mesh.scale.x = 1;
-	        this.mesh.scale.y = 1;
+	        this.mesh.scale.y = this.dim.height * 40;
 	        this.mesh.scale.z = 1;
-	        this.mesh.position.x = 6;
-	        this.mesh.position.y = 10;
-	        this.screen.scene.add(this.mesh);
+	        this.mesh.position.x = 0;
+	        this.mesh.position.y = 0;
+	        // this.screen.scene.add(this.mesh);
 	        this.movementStatus = "waiting";
 	    };
 	    FallingItem.prototype.sideTweenComplete = function () {
@@ -66473,7 +66839,7 @@
 
 
 /***/ },
-/* 12 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/**
@@ -67366,130 +67732,6 @@
 		}
 	
 	})(this);
-
-
-/***/ },
-/* 13 */
-/***/ function(module, exports) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	var ThreeItem = (function () {
-	    function ThreeItem() {
-	        this.thisThreeItemID = ThreeItem.threeItemID;
-	        // store this physicsObject in an array for later
-	        ThreeItem.threeItems[this.thisThreeItemID] = this;
-	        // console.log("Object " + ThreeItem.threeItemID + " created.");
-	        ThreeItem.threeItemID++;
-	    }
-	    // get items by id
-	    ThreeItem.getItemByID = function (id) {
-	        return ThreeItem.threeItems[id];
-	    };
-	    // get items by name
-	    ThreeItem.getItemByName = function (name) {
-	        for (var item in ThreeItem.threeItems) {
-	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
-	                if (ThreeItem.threeItems[item].name === name) {
-	                    return ThreeItem.threeItems[item];
-	                }
-	            }
-	        }
-	    };
-	    // call the update function on every three item we've made
-	    ThreeItem.update = function (dt, time) {
-	        for (var item in ThreeItem.threeItems) {
-	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
-	                ThreeItem.threeItems[item].update(dt, time);
-	            }
-	        }
-	    };
-	    ThreeItem.prototype.killThreeItem = function (id) {
-	        delete ThreeItem.threeItems[id];
-	    };
-	    ThreeItem.threeItemID = 0;
-	    ThreeItem.threeItems = {};
-	    return ThreeItem;
-	})();
-	exports.ThreeItem = ThreeItem;
-
-
-/***/ },
-/* 14 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var THREE = __webpack_require__(3);
-	var ThreeItem = __webpack_require__(13);
-	var Control = (function (_super) {
-	    __extends(Control, _super);
-	    function Control(shape, name, pos, options) {
-	        _super.call(this);
-	        this.thisControlID = Control.controlID;
-	        this.name = name;
-	        switch (shape) {
-	            case "sphere":
-	                this.createSphereMesh(options);
-	                break;
-	            case "circle":
-	                this.createCircleMesh(options);
-	                break;
-	            case "square":
-	            case "box":
-	                this.createBoxMesh(options);
-	                break;
-	        }
-	        this.mesh.position.set(pos.x, pos.y, pos.z);
-	        this.mesh.userData.controlID = this.thisControlID;
-	        Control.controls[this.thisControlID] = this;
-	        Control.meshes.push(this.mesh);
-	        Control.controlID++;
-	    }
-	    Control.getControlByID = function (id) {
-	        return Control.controls[id];
-	    };
-	    Control.prototype.getControlByName = function (name) {
-	        for (var control in Control.controls) {
-	            if (Control.controls.hasOwnProperty(control)) {
-	                if (Control.controls[control].name === name) {
-	                    return Control.controls[control];
-	                }
-	            }
-	        }
-	    };
-	    Control.prototype.createSphereMesh = function (options) {
-	        this.geometry = new THREE.SphereGeometry(options && options.size || null);
-	        this.material = new THREE.MeshBasicMaterial({
-	            color: options && options.color || null
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	    };
-	    Control.prototype.createBoxMesh = function (options) {
-	        this.geometry = new THREE.BoxGeometry(options && options.size || null, options && options.size || null, options && options.size || null);
-	        this.material = new THREE.MeshBasicMaterial({
-	            color: options && options.color || null
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	    };
-	    Control.prototype.createCircleMesh = function (options) {
-	        this.geometry = new THREE.CircleGeometry(options && options.size || null, options && options.segments || null);
-	        this.material = new THREE.MeshBasicMaterial({
-	            color: options && options.color || null
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	    };
-	    Control.prototype.update = function () {
-	    };
-	    Control.controlID = 0;
-	    Control.controls = {};
-	    Control.meshes = []; // an array of meshes to use in touch events
-	    return Control;
-	})(ThreeItem.ThreeItem);
-	exports.Control = Control;
 
 
 /***/ }

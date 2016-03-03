@@ -18,6 +18,8 @@ export class Screen {
     displayStatus: string = "hidden";
     dirLight;
     ambLight;
+    static width: number;
+    static height: number;
 
     constructor(options?) {
         if (options.name ) {
@@ -31,10 +33,10 @@ export class Screen {
 
         this.scene = new THREE.Scene();
         this.camera = new THREE.OrthographicCamera(
-            -options.width / 2,
-            options.width / 2,
-            options.height / 2,
-            -options.height / 2, 0.1, 25 );
+            -Screen.width / 2,
+            Screen.width / 2,
+            Screen.height / 2,
+            -Screen.height / 2, 0.01, 25 );
         // this.camera = new THREE.PerspectiveCamera(
         //     130,
         //     options.width / options.height,
@@ -42,16 +44,17 @@ export class Screen {
 
 
         // LIGHTS
-        this.ambLight = new THREE.AmbientLight( 0xffffff);
+        this.ambLight = new THREE.AmbientLight( 0x444444);
         this.ambLight.position.set( 0, 5, 5 );
-        // this.scene.add(this.ambLight );
+        this.scene.add(this.ambLight );
+        this.lights.push (this.ambLight);
 
-        //
-        this.dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
-        this.dirLight.color.setHSL( 1, 1, 1 );
-        this.dirLight.position.set( -0, 0, 0 );
-        this.dirLight.position.multiplyScalar( 50 );
-        this.scene.add(this.dirLight );
+        // //
+        // this.dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
+        // this.dirLight.color.setHSL( 1, 1, 1 );
+        // this.dirLight.position.set( -0, 0, 0 );
+        // this.dirLight.position.multiplyScalar( 50 );
+        // this.scene.add(this.dirLight );
 
         // console.log("scene " + Scene.sceneID  + " created");
         if (options.order) {
@@ -62,6 +65,23 @@ export class Screen {
             // $("#" + [this.overlay]).hide();
         }
          Screen.sceneID++;
+    }
+
+    public static init() {
+        Screen.width = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+        Screen.height = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+
+        if (Screen.width > Screen.height) {
+            Screen.width = 9 * Screen.height / 16;
+        }
+    }
+
+    public static getWidth() {
+        return Screen.width;
+    }
+
+    public static getHeight() {
+        return Screen.height;
     }
 
     public static getCurrentScreen() {

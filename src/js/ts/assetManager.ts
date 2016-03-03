@@ -9,9 +9,9 @@ export class AssetManager {
     static imgPath = "./../assets/graphics";
     static soundPath = "./../assets/sounds";
     static assets = {
-        buttonLeft: {type: "texture", source: "./../assets/graphics/buttonLeft.png", tag: "buttonLeft"},
-        buttonDown: {type: "texture", source: "./../assets/graphics/buttonDown.png", tag: "buttonDown"},
-        buttonRight: {type: "texture", source: "./../assets/graphics/buttonRight.png", tag: "buttonRightt"}
+        leftButton: {type: "texture", source: "./../assets/graphics/buttonLeft.png", tag: "buttonLeft"},
+        downButton: {type: "texture", source: "./../assets/graphics/buttonDown.png", tag: "buttonDown"},
+        rightButton: {type: "texture", source: "./../assets/graphics/buttonRight.png", tag: "buttonRightt"}
     };
     static numAssetsToLoad = 0;
     static numAssetsLoaded = 0;
@@ -24,9 +24,12 @@ export class AssetManager {
 
     }
 
-    static loadAssets(onProgress, onComplete) {
+    static loadAssets(onInit, onProgress, onComplete) {
         AssetManager.onProgress = onProgress;
         AssetManager.onComplete = onComplete;
+        // send the total number of items that need to be loaded
+        onInit(Object.keys(AssetManager.assets).length);
+
         _.forEach(AssetManager.assets, function(asset, key){
             switch (asset.type) {
                 case "texture":
@@ -67,7 +70,8 @@ export class AssetManager {
             // Function when resource is loaded
             function(texture) {
                 // do something with the texture
-                let material = new THREE.MeshBasicMaterial({
+
+                asset.material = new THREE.MeshBasicMaterial({
                     map: texture
                 });
                 AssetManager.numAssetsLoaded ++;
@@ -94,6 +98,10 @@ export class AssetManager {
         //     }
         // );
 
+    }
+
+    static getAssetByTag(tag: string) {
+        return AssetManager.assets[tag];
     }
 
     loadSound(path) {

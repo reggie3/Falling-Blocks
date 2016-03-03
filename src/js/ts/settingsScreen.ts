@@ -1,7 +1,7 @@
 import GameScreen = require("./gameScreen");
 
-class SettingsScreen extends GameScreen.Screen {
-    constructor () {
-        super();
+export class SettingsScreen extends GameScreen.Screen {
+    constructor (options?) {
+        super(options);
     }
 }

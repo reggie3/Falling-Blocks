@@ -46,7 +46,29 @@ export class Candy extends FallingItem.FallingItem {
         let max = this.candyTypes.length;  // right bound
         let candy = this.candyTypes[Math.floor(Math.random() * (max - min) + min)];
 
+        // create the mesh
+        this.dim.width = options && options.width || 1;
+        this.dim.height = options && options.height || 1;
+        this.dim.depth = options && options.depth || 1;
+
+        // this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
+        this.geometry  = new THREE.SphereGeometry(this.dim.width / 2, 16, 16);
+        this.material = new THREE.MeshPhongMaterial({
+            color: candy.color,
+            specular: candy.color,
+            shininess: 50,
+            shading: THREE.SmoothShading
+        });
+
+        this.mesh = new THREE.Mesh(this.geometry, this.material);
+        this.mesh.position.set(
+            options && options.x || 0,
+            options && options.y || 0,
+            options && options.z || 0
+        );
+
         // this.mesh.material.color.setHex(candy.color);
+        this.mesh.userData.FallingItemID = this.thisFallingItemID;   // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the FallingItem
         this.mesh.userData.candyID = this.thisCandyID;
         Candy.candyMeshes.push(this.mesh);  // we'll need to shot rays against these later
         this.type = candy.name;

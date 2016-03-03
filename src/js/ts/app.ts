@@ -4,8 +4,10 @@
 
 /// <reference path="./assetManager.ts" />
 /// <reference path="./gameObject.ts" />
-/// <reference path="./playScreen.ts" />
+/// <reference path="./gameScreen.ts" />
 /// <reference path="./settingsScreen.ts" />
+/// <reference path="./playScreen.ts" />
+
 /// <reference path="./loadingScreen.ts" />
 /// <reference path="./startScreen.ts" />
 /// <reference path="./threeItem.ts" />
@@ -19,10 +21,11 @@ import * as $ from "jquery";
 
 import AssetManager = require("./assetManager");
 import GameObject = require("./gameObject");
-import GameScreen = require("./settingsScreen");
-import GameScreen = require("./startScreen");
-import GameScreen = require("./loadingScreen");
-import GameScreen = require("./playScreen");
+import GameScreen = require("./gameScreen");
+import SettingsScreen = require("./settingsScreen");
+import StartScreen = require("./startScreen");
+import LoadingScreen = require("./loadingScreen");
+import PlayScreen = require("./playScreen");
 import ThreeItem = require("./threeItem");
 import Candy = require("./candy");
 import Control = require("./control");
@@ -39,10 +42,10 @@ let threeItem;
 let clock;
 const dt = 1 / 60;
 const xPositions = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
-const numBlocksWide = 10;
-const blockWidth = 1;
-let controls = { leftButton: null, downButton: null, rightButton: null };
-const width = 20;
+const numBlocksOnPlayfield = 10;
+const numBlocksAcrossScene = 20;
+let blockWidth = 10;
+
 let hammer; // use to catch mouse and touch events with Hammer
 let time;
 let delta;
@@ -65,24 +68,59 @@ $(() => {
 });
 
 function createGame() {
-
-    game = new GameObject.Game(THREE);
-
-    // create the screens
-    playScreen = new PlayScreen();
-    startScreen = new StartScreen();
-    settingscreen = new SettingsScreen();
-    loadingScreen = new LoadingScreen();
+    GameScreen.Screen.init();
+    game = new GameObject.Game(GameScreen.Screen.getWidth(), GameScreen.Screen.getHeight());
+    blockWidth = Math.floor(GameScreen.Screen.getWidth() / numBlocksAcrossScene);
+    loadingScreen = new LoadingScreen.LoadingScreen({
+        name: "loadingScreen",
+        overlay: "loadingOverlay",
+        // order: 1,
+        blockWidth: blockWidth,
+        screenDim : {
+            width: GameScreen.Screen.getWidth(),
+            height: GameScreen.Screen.getHeight()
+        }
+    });
 
     // loadingScreen.show();
     GameScreen.Screen.setCurrentcreen(loadingScreen);
+
     AssetManager.AssetManager.loadAssets(
-        function(){
-            console.log("loaded");
+        function(numberAssets) {    // asset loaded update function
+            console.log(numberAssets + " assets");
+
+            // the loading screen progress bar will increment for each asset and each of the screens
+             loadingScreen.initProgressBar(numberAssets + 3);
         },
-        function () {
+        function() {    // asset loaded update function
+             loadingScreen.updateProgressBar(1);
+        },
+        function() {
             console.log("finished");
-            GameScreen.Screen.setCurrentcreen(playScreen);
+            // create the screens
+            playScreen = new PlayScreen.PlayScreen({
+                name: "playScreen",
+                overlay: "playScreenOverlay",
+                order: 1,
+                blockWidth: blockWidth
+            });
+             loadingScreen.updateProgressBar(1);
+            startScreen = new StartScreen.StartScreen({
+                name: "startScreen",
+                overlay: "startOverlay",
+                order: 0,
+                blockWidth: blockWidth
+            });
+             loadingScreen.updateProgressBar(1);
+            settingsScreen = new SettingsScreen.SettingsScreen({
+                name: "settingsScreen",
+                overlay: "settingsOverlay",
+                // order: 4,
+                blockWidth: blockWidth
+            });
+            loadingScreen.updateProgressBar(1);
+
+            // GameScreen.Screen.setCurrentcreen(playScreen);
         });
 
     let render = function() {
@@ -96,7 +134,7 @@ function createGame() {
                     createFallingItem(screen
                     );
                 }
-            break;
+                break;
         }
 
         game.render(GameScreen.Screen.getCurrentScreen());
@@ -111,115 +149,22 @@ function createFallingItem(screen) {
     let min = 0; // left bound
     let max = xPositions.length;  // right bound
     // get random number between them
-    let xPos = xPositions[Math.floor(Math.random() * (max - min) + min)];
+    let xPos = blockWidth * xPositions[Math.floor(Math.random() * (max - min) + min)];
 
     // console.log(xPos);
     let candy = new Candy.Candy(
         {
-            width: blockWidth,
+            width: blockWidth, height: blockWidth, depth: blockWidth,
             x: xPos,
-            y: 30,
+            y: 20 * blockWidth,
             name: "candy",
-            screen : playScreen,
+            screen: playScreen,
             customMaterial: true
         });
 
     playScreen.add(candy);
 }
 
-
-/*******************************************************************
- * Create the start screen
- */
-function buildLoadingScreen() {
-    loadingScreen = new GameScreen.Screen({
-        width: width,
-        height: 9 * width / 6,
-        name: "loadingScreen",
-        overlay: "loadingOverlay",
-        // order: 1
-    });
-}
-
-/*******************************************************************
- * Create the start screen
- */
-function buildStartScreen() {
-    startScreen = new GameScreen.Screen({
-        width: width,
-        height: 9 * width / 6,
-        name: "startScreen",
-        overlay: "startOverlay",
-        order: 0
-    });
-}
-
-/**************************************************************************
- * Create the settings screen
- */
-function buildSettingsScreen() {
-    settingsScreen = new GameScreen.Screen({
-        width: width,
-        height: 9 * width / 6,
-        name: "settingsScreen",
-        overlay: "settingsOverlay",
-        // order: 4
-    });
-}
-
-/****************************************************************
- * Create the action screen
- */
-function buildPlayScreen() {
-    playScreen = new GameScreen.Screen({
-        width: width,
-        height: 9 * width / 6,
-        name: "playScreen",
-        overlay: "playScreenOverlay",
-        order: 1
-    });
-
-    // create the ground
-    let ground = new FallingItem.FallingItem({
-        width: 11,
-        height: 1,
-        depth: 1,
-        x: 0,
-        y: -.5,
-        z: 0,
-        color: new THREE.Color("rgb(0,140,0)"),
-        name: "ground",
-        movementStatus: "unmovable",  // the ground stays still.
-        screen : playScreen
-    });
-    playScreen.add(ground);
-
-    // create controls
-    controls.leftButton = new Control.Control("circle", "leftButton", new THREE.Vector3(-4, -3, 2), {
-        size: 1.5,
-        segments: 32,
-        color: new THREE.Color("rgb(140,140,0)")
-    });
-    controls.downButton = new Control.Control("circle", "downButton", new THREE.Vector3(0, -3, 2), {
-        size: 1.5,
-        segments: 32,
-        color: new THREE.Color("rgb(140,140,0)")
-    });
-    controls.rightButton = new Control.Control("circle", "rightButton", new THREE.Vector3(4, -3, 2), {
-        size: 1.5,
-        segments: 32,
-        color: new THREE.Color("rgb(140,140,0)")
-    });
-
-    for (let control in controls) {
-        if (controls.hasOwnProperty(control)) {
-            playScreen.add(controls[control]);
-        }
-    }
-
-    // center the camera
-    playScreen.positionCamera(null, 10, 10);
-}
 
 /***********************************************************************
  * User defined event handlers
@@ -237,27 +182,27 @@ function hammerEventReceived(event) {
     }
     // console.log("touchpoint " + tapPoint.x + ", " + tapPoint.y);
     let worldCoords = convertCoordsToThreescreen
-    (new THREE.Vector2(tapPoint.x, tapPoint.y));
+        (new THREE.Vector2(tapPoint.x, tapPoint.y));
     // console.log("world Coords: " + worldCoords.x + ", " + worldCoords.y);
 
     let raycaster = new THREE.Raycaster(); // create once
     // raycasting code from each camera copied from here:
     // http://stackoverflow.com/questions/25024044/three-js-raycasting-with-camera-as-origin
     if (playScreen.camera instanceof THREE.OrthographicCamera) {
-        worldCoords.unproject( playScreen.camera );
+        worldCoords.unproject(playScreen.camera);
         let dir = new THREE.Vector3;
-        dir.set( 0, 0, - 1 ).transformDirection( playScreen.camera.matrixWorld );
-        raycaster.set( worldCoords, dir );
+        dir.set(0, 0, - 1).transformDirection(playScreen.camera.matrixWorld);
+        raycaster.set(worldCoords, dir);
     }
     // TODO: raycaster does not work with perspective camera
-    else if ( playScreen
-    .camera instanceof THREE.PerspectiveCamera ) {
-        worldCoords.unproject( playScreen.camera );
-        raycaster.set( playScreen.camera.position, worldCoords.sub( playScreen.camera.position ).normalize());
+    else if (playScreen
+        .camera instanceof THREE.PerspectiveCamera) {
+        worldCoords.unproject(playScreen.camera);
+        raycaster.set(playScreen.camera.position, worldCoords.sub(playScreen.camera.position).normalize());
     }
 
     let intersectionArray = raycaster.intersectObjects(Control.Control.meshes);
-    if (intersectionArray.length > 0 ) {
+    if (intersectionArray.length > 0) {
         resolveControlInteraction(intersectionArray);
     }
 
@@ -297,7 +242,7 @@ function hammerEventReceived(event) {
 // }
 
 function convertCoordsToThreescreen
-(coords: THREE.Vector2) {
+    (coords: THREE.Vector2) {
     let worldCoords = new THREE.Vector3(
         (coords.x / window.innerWidth) * 2 - 1,
         - (coords.y / window.innerHeight) * 2 + 1,
@@ -315,20 +260,20 @@ function resolveControlInteraction(intersectedObjects) {
     // }
     if (intersectedObjects[0].object.userData.hasOwnProperty("controlID")) {
         // get the control name
-        let controlName = Control.Control.getControlByID( intersectedObjects[0].object.userData.controlID ).name;
+        let controlName = Control.Control.getControlByID(intersectedObjects[0].object.userData.controlID).name;
         switch (controlName) {
             case "leftButton":
                 console.log("left");
-                FallingItem.FallingItem.moveQueue.push("left");
-            break;
+                FallingItem.FallingItem.addMove("left");
+                break;
             case "rightButton":
                 console.log("right");
-                FallingItem.FallingItem.moveQueue.push("right");
-            break;
+                FallingItem.FallingItem.addMove("right");
+                break;
             case "downButton":
                 console.log("down");
                 FallingItem.FallingItem.fallFaster = !FallingItem.FallingItem.fallFaster;
-            break;
+                break;
         }
     }
 }

@@ -12,7 +12,8 @@ export class FallingItem extends ThreeItem.ThreeItem {
     thisFallingItemID: number;
     movementStatus = "falling";
     type;
-    fallingSpeed = .1;
+    fallingSpeed = 100;
+    fallFasterMultiplier = 5;
     static fallFaster = false;
     screen; // the game screen this object is in
     dim = { width: null, height: null, depth: null };
@@ -43,53 +44,57 @@ export class FallingItem extends ThreeItem.ThreeItem {
         this.screen = options && options.screen;
         this.movementStatus = options && options.movementStatus || "falling";
 
-        // create the mesh
-        this.dim.width = options && options.width || 1;
-        this.dim.height = options && options.height || 1;
-        this.dim.depth = options && options.depth || 1;
 
-        this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
-
-
-        this.material = new THREE.MeshPhongMaterial({
-             color: (options && options.color) ? options.color : new THREE.Color("rgb(255, 0, 0)"),
-             specular: 0x009900, shininess: 30, shading: THREE.FlatShading
-        });
-
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        this.mesh.position.set(
-            options && options.x || 0,
-            options && options.y || 0,
-            options && options.z || 0
-        );
         // console.log("FallingItem " + this.thisThreeItemID + " created");
 
         // add this item to the array of physics items
         FallingItem.FallingItems[this.thisFallingItemID] = this;
 
-        this.mesh.FallingItemID = this.thisFallingItemID;   // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the FallingItem
+
         // console.log ("FallingItem " + this.thisFallingItemID + " created");
     }
 
     update(dt, time) {
 
-           // falling item behavior is based on movement status
+        // falling item behavior is based on movement status
         switch (this.movementStatus) {
             case "falling":
+                let ground = ThreeItem.ThreeItem.getItemByName("ground");
+
+
                 if (FallingItem.fallFaster) {
-                    this.mesh.position.y -= this.fallingSpeed * 5;
+                    this.mesh.position.y -= this.fallingSpeed * this.fallFasterMultiplier * dt;
                 }
                 else {
-                    this.mesh.position.y -= this.fallingSpeed;
+                    this.mesh.position.y -= this.fallingSpeed * dt;
                 }
+                // don't let the blocks be moved to a point below the ground
+                if ((this.mesh.position.y < ground.mesh.position.y
+                    + this.dim.height / 2
+                    + ground.dim.height / 2) && (this.hasOwnProperty("thisCandyID"))) {
+                        // move the box up and then tell it to stop moving
+                        this.mesh.position.y = ground.mesh.position.y
+                            + this.dim.height / 2
+                            + ground.dim.height / 2;
+                            this.movementStatus = "stopped";
+                            // empty the move queue so that the next block starts out with a new slate
+                            FallingItem.moveQueue = [];
+                            // console.log("move queue emptied 1");
+                            break;
+                }
+
+                // check to see if the block has collided with anything
                 if (this.checkForCollision()) {
                     this.movementStatus = "stopped";
 
                     // empty the move queue so that the next block starts out with a new slate
                     FallingItem.moveQueue = [];
+                    // console.log("move queue emptied 2");
+                    break;
                 }
+
                 // check to see if we've been told to move left or right
-                else if (FallingItem.moveQueue.length > 0) {
+                if (FallingItem.moveQueue.length > 0) {
                     switch (FallingItem.moveQueue[0]) {
                         case "left":
                             this.movementStatus = "moveLeft";
@@ -99,6 +104,7 @@ export class FallingItem extends ThreeItem.ThreeItem {
                             break;
                     }
                     FallingItem.moveQueue.shift();  // remove this directive from the queue
+                    break;
                 }
                 break;
             case "stopped":
@@ -111,7 +117,7 @@ export class FallingItem extends ThreeItem.ThreeItem {
             case "moveLeft":    // just received directive to move left
             case "moveRight":   // just received directive to move right
                 // y movement direction never changes
-                this.tweenInfo.newPos.y = this.mesh.position.y + this.dim.height * 3;
+                this.tweenInfo.newPos.y = this.mesh.position.y + this.dim.height;
 
                 switch (this.movementStatus) {
                     case "moveLeft":
@@ -125,7 +131,7 @@ export class FallingItem extends ThreeItem.ThreeItem {
                 }
 
                 // don't go beyond the borders of the field
-                if ((this.tweenInfo.newPos.x >= -5) && (this.tweenInfo.newPos.x <= 5)) {
+                if ((this.tweenInfo.newPos.x >= -5 * this.dim.width) && (this.tweenInfo.newPos.x <= 5 * this.dim.width)) {
 
                     // console.log("cur x: " + this.tweenInfo.pos.x + " | new x: " + this.tweenInfo.newPos.x);
                     // console.log("cur y: " + this.tweenInfo.pos.y + " | new y: " + this.tweenInfo.newPos.y);
@@ -171,24 +177,6 @@ export class FallingItem extends ThreeItem.ThreeItem {
                 this.resetDeadItem();
                 break;
         }
-
-        // check to see if the FallingItem is below the ground.
-        // If it is then remove it from the scene
-        // this was originally used before the ground stopped falling items
-        let ground = ThreeItem.ThreeItem.getItemByName("ground");
-        if (this.mesh.position.y < ground.mesh.position.y - 1) {
-            this.movementStatus = "kill";
-        }
-
-        // check to see if the candy is below the ground.
-        // If it is then make sure it is sitting on the ground
-        if ((this.mesh.position.y < ground.mesh.position.y
-            + this.dim.height / 2
-            + ground.dim.height / 2) && (this.hasOwnProperty("thisCandyID"))) {
-            this.mesh.position.y = ground.mesh.position.y
-                + this.dim.height / 2
-                + ground.dim.height / 2;
-        }
     }
 
     public static addMove(direction: string) {
@@ -216,7 +204,7 @@ export class FallingItem extends ThreeItem.ThreeItem {
         for (let item in FallingItem.FallingItems) {
             if (FallingItem.FallingItems.hasOwnProperty(item)) {
                 if (FallingItem.FallingItems[item].name === name) {
-                    return FallingItem.FallingItems[item]
+                    return FallingItem.FallingItems[item];
                 }
             }
         }
@@ -250,9 +238,6 @@ export class FallingItem extends ThreeItem.ThreeItem {
     }
 
     private checkForCollision(): boolean {
-        if (this.movementStatus === "checked") {
-            // console.log(this);
-        }
         let raycaster = new THREE.Raycaster(
             this.mesh.position,
             new THREE.Vector3(0, -1, 0),
@@ -306,11 +291,11 @@ export class FallingItem extends ThreeItem.ThreeItem {
         this.killThreeItem(this.thisThreeItemID);
         this.screen.scene.remove(this.mesh);
         this.mesh.scale.x = 1;
-        this.mesh.scale.y = 1;
+        this.mesh.scale.y = this.dim.height * 40;
         this.mesh.scale.z = 1;
-        this.mesh.position.x = 6;
-        this.mesh.position.y = 10;
-        this.screen.scene.add(this.mesh);
+        this.mesh.position.x = 0;
+        this.mesh.position.y = 0;
+        // this.screen.scene.add(this.mesh);
         this.movementStatus = "waiting";
     }
 
