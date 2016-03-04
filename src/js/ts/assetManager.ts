@@ -8,10 +8,17 @@ export class AssetManager {
 
     static imgPath = "./../assets/graphics";
     static soundPath = "./../assets/sounds";
+    static threeFontPath = "./../assets/threeTypefaces/";
     static assets = {
         leftButton: {type: "texture", source: "./../assets/graphics/buttonLeft.png", tag: "buttonLeft"},
         downButton: {type: "texture", source: "./../assets/graphics/buttonDown.png", tag: "buttonDown"},
-        rightButton: {type: "texture", source: "./../assets/graphics/buttonRight.png", tag: "buttonRightt"}
+        rightButton: {type: "texture", source: "./../assets/graphics/buttonRight.png", tag: "buttonRight"},
+        gentilis_bold: {type: "threeFont", source: AssetManager.threeFontPath + "gentilis_bold" + ".typeface.js", font: null},
+        gentilis_regular: {type: "threeFont", source: AssetManager.threeFontPath + "gentilis_regular" + ".typeface.js", font: null},
+        helvetiker_bold: {type: "threeFont", source: AssetManager.threeFontPath + "helvetiker_bold" + ".typeface.js", font: null},
+        helvetiker_regular: {type: "threeFont", source: AssetManager.threeFontPath + "helvetiker_regular" + ".typeface.js", font: null},
+        optimer_bold: {type: "threeFont", source: AssetManager.threeFontPath + "optimer_bold" + ".typeface.js", font: null},
+        optimer_regular: {type: "threeFont", source: AssetManager.threeFontPath + "optimer_regular" + ".typeface.js", font: null}
     };
     static numAssetsToLoad = 0;
     static numAssetsLoaded = 0;
@@ -34,6 +41,10 @@ export class AssetManager {
             switch (asset.type) {
                 case "texture":
                     AssetManager.loadTexture (asset);
+                    break;
+                case "threeFont":
+                    AssetManager.loadThreeFont(asset);
+                    break;
             }
             // console.log(value.source);
             // this.loadImage(value);
@@ -74,32 +85,27 @@ export class AssetManager {
                 asset.material = new THREE.MeshBasicMaterial({
                     map: texture
                 });
-                AssetManager.numAssetsLoaded ++;
+                AssetManager.assetLoaded();
+            }
+        );
+    }
+
+    static loadThreeFont(asset) {
+        let loader = new THREE.FontLoader();
+        loader.load( asset.source, function ( response ) {
+            asset.font = response;
+            AssetManager.assetLoaded();
+        });
+    }
+
+    static assetLoaded() {
+        AssetManager.numAssetsLoaded ++;
                 AssetManager.onProgress();
 
                 if (AssetManager.numAssetsLoaded ===  AssetManager.numAssetsToLoad) {
                     AssetManager.onComplete();
                 }
-            }
-        );
-
-        // loader.load(
-        //     asset.source,
-        //     onload(function (texture) {    // load completed
-        //         asset.material = new THREE.MeshBasicMaterial({
-        //             map: texture
-        //         });
-        //     }),
-        //     function (xhr) {    // load progress
-        //         console.log( (xhr.loaded / xhr.total * 100) + '% loaded' );
-        //     },
-        //     function (xhr) {    // load error
-        //         console.log( 'An error happened' );
-        //     }
-        // );
-
     }
-
     static getAssetByTag(tag: string) {
         return AssetManager.assets[tag];
     }

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import GameScreen = require("./gameScreen");
+import AssetManager = require("./assetManager");
 
 export class LoadingScreen extends GameScreen.Screen {
      currentPgBar;
@@ -15,28 +16,47 @@ export class LoadingScreen extends GameScreen.Screen {
         height: 25
 
     };
+    textGeo;
+    textMesh;
+    textMat;
+    callback;
+
      minX = -100;   // the width of the pogress bar will be twice the absolute value of this number
      numIncrements = 4;
      static incrementCounter = 0;
 
-    constructor (options?) {
+    constructor (options, callback) {
         super(options);
         this.screenWidth = options.screenDim.width;
         this.screenHeight = options.screenDim.height;
+        this.callback = callback;
 
-        this.textGeo = new THREE.TextGeometry( "Loading", {});
-        // let pgBarGeometry = new THREE.PlaneGeometry(this.pgBar.width, this.pgBar.height, 32);
-        // let pgBarMaterial = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
-        // let pgBarMesh = new THREE.Mesh( pgBarGeometry , pgBarMaterial );
-        // pgBarMesh.position.x = this.minX;
-        // this.currentPgBar = pgBarMesh;
-        // this.scene.add( this.currentPgBar );
+        // load a font for use on this screen
+        let loader = new THREE.FontLoader();
+        let that = this;
+        loader.load( AssetManager.AssetManager.assets.gentilis_regular.source,
+            function ( response ) {
+                AssetManager.AssetManager.assets.gentilis_regular.font = response;
+                that.textGeo = new THREE.TextGeometry( "Please Wait", {
+                    font: AssetManager.AssetManager.assets.gentilis_regular.font,
+                    size: 25,
+                    height: 0,
+                    curveSegments: 48,
+                    bevelEnabled: false
+                });
+                THREE.GeometryUtils.center( that.textGeo );
+                that.textMat = new THREE.MeshBasicMaterial({});
+                that.textMesh = new THREE.Mesh(that.textGeo, that.textMat);
+                that.textMesh.position.y = 20;
+                that.scene.add(that.textMesh);
+            }, that);
+
+
 
         this.createLights();
 
         // center the camera
         this.positionCamera(0, 10, 18);
-
 
         // this.testProgressBar();
     }
@@ -46,8 +66,9 @@ export class LoadingScreen extends GameScreen.Screen {
          this.numIncrements = numberItems;
     }
 
+    // just in case we need an update loop for this screen
     update(dt) {
-        debugger;
+
     }
 
      testProgressBar() {
@@ -72,6 +93,7 @@ export class LoadingScreen extends GameScreen.Screen {
         let pgBarMesh = new THREE.Mesh( pgBarGeometry , pgBarMaterial );
         let xPos = this.minX + (LoadingScreen.incrementCounter * incrementWidth / 2);
         pgBarMesh.position.x = xPos;
+        pgBarMesh.position.y = -40;
         this.currentPgBar = pgBarMesh;
         this.scene.add( this.currentPgBar );
         console.log(xPos + " : " + barWidth);

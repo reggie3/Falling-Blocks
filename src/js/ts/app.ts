@@ -80,11 +80,36 @@ function createGame() {
             width: GameScreen.Screen.getWidth(),
             height: GameScreen.Screen.getHeight()
         }
-    });
+    }, doPreloadAndCreateScreens);
 
     // loadingScreen.show();
     GameScreen.Screen.setCurrentcreen(loadingScreen);
 
+
+
+    let render = function() {
+
+        requestAnimationFrame(render);
+        Candy.Candy.update(game.clock.getDelta(), game.clock.getElapsedTime());
+
+        switch (GameScreen.Screen.getCurrentScreen().name) {
+            case "playScreen":
+                if (FallingItem.FallingItem.getNumFallingItemsMoving() <= 0) {
+                    createFallingItem(screen
+                    );
+                }
+                break;
+        }
+
+        game.render(GameScreen.Screen.getCurrentScreen());
+        // kill a random FallingItem to test if FallingItems drop after the one under them is removed from the screen
+        // FallingItem.FallingItem.killRandom();
+    };
+
+    render();
+}
+
+function doPreloadAndCreateScreens() {
     AssetManager.AssetManager.loadAssets(
         function(numberAssets) {    // asset loaded update function
             console.log(numberAssets + " assets");
@@ -122,27 +147,6 @@ function createGame() {
 
             // GameScreen.Screen.setCurrentcreen(playScreen);
         });
-
-    let render = function() {
-
-        requestAnimationFrame(render);
-        Candy.Candy.update(game.clock.getDelta(), game.clock.getElapsedTime());
-
-        switch (GameScreen.Screen.getCurrentScreen().name) {
-            case "playScreen":
-                if (FallingItem.FallingItem.getNumFallingItemsMoving() <= 0) {
-                    createFallingItem(screen
-                    );
-                }
-                break;
-        }
-
-        game.render(GameScreen.Screen.getCurrentScreen());
-        // kill a random FallingItem to test if FallingItems drop after the one under them is removed from the screen
-        // FallingItem.FallingItem.killRandom();
-    };
-
-    render();
 }
 
 function createFallingItem(screen) {

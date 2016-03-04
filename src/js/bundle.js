@@ -122,38 +122,39 @@
 	        }
 	    });
 	    // loadingScreen.show();
-	    GameScreen.Screen.setCurrentcreen(loadingScreen);
-	    AssetManager.AssetManager.loadAssets(function (numberAssets) {
-	        console.log(numberAssets + " assets");
-	        // the loading screen progress bar will increment for each asset and each of the screens
-	        loadingScreen.initProgressBar(numberAssets + 3);
-	    }, function () {
-	        loadingScreen.updateProgressBar(1);
-	    }, function () {
-	        console.log("finished");
-	        // create the screens
-	        playScreen = new PlayScreen.PlayScreen({
-	            name: "playScreen",
-	            overlay: "playScreenOverlay",
-	            order: 1,
-	            blockWidth: blockWidth
+	    GameScreen.Screen.setCurrentcreen(loadingScreen, function () {
+	        AssetManager.AssetManager.loadAssets(function (numberAssets) {
+	            console.log(numberAssets + " assets");
+	            // the loading screen progress bar will increment for each asset and each of the screens
+	            loadingScreen.initProgressBar(numberAssets + 3);
+	        }, function () {
+	            loadingScreen.updateProgressBar(1);
+	        }, function () {
+	            console.log("finished");
+	            // create the screens
+	            playScreen = new PlayScreen.PlayScreen({
+	                name: "playScreen",
+	                overlay: "playScreenOverlay",
+	                order: 1,
+	                blockWidth: blockWidth
+	            });
+	            loadingScreen.updateProgressBar(1);
+	            startScreen = new StartScreen.StartScreen({
+	                name: "startScreen",
+	                overlay: "startOverlay",
+	                order: 0,
+	                blockWidth: blockWidth
+	            });
+	            loadingScreen.updateProgressBar(1);
+	            settingsScreen = new SettingsScreen.SettingsScreen({
+	                name: "settingsScreen",
+	                overlay: "settingsOverlay",
+	                // order: 4,
+	                blockWidth: blockWidth
+	            });
+	            loadingScreen.updateProgressBar(1);
+	            // GameScreen.Screen.setCurrentcreen(playScreen);
 	        });
-	        loadingScreen.updateProgressBar(1);
-	        startScreen = new StartScreen.StartScreen({
-	            name: "startScreen",
-	            overlay: "startOverlay",
-	            order: 0,
-	            blockWidth: blockWidth
-	        });
-	        loadingScreen.updateProgressBar(1);
-	        settingsScreen = new SettingsScreen.SettingsScreen({
-	            name: "settingsScreen",
-	            overlay: "settingsOverlay",
-	            // order: 4,
-	            blockWidth: blockWidth
-	        });
-	        loadingScreen.updateProgressBar(1);
-	        // GameScreen.Screen.setCurrentcreen(playScreen);
 	    });
 	    var render = function () {
 	        requestAnimationFrame(render);
@@ -53288,6 +53289,10 @@
 	            switch (asset.type) {
 	                case "texture":
 	                    AssetManager.loadTexture(asset);
+	                    break;
+	                case "threeFont":
+	                    AssetManager.loadThreeFont(asset);
+	                    break;
 	            }
 	            // console.log(value.source);
 	            // this.loadImage(value);
@@ -53323,26 +53328,22 @@
 	            asset.material = new THREE.MeshBasicMaterial({
 	                map: texture
 	            });
-	            AssetManager.numAssetsLoaded++;
-	            AssetManager.onProgress();
-	            if (AssetManager.numAssetsLoaded === AssetManager.numAssetsToLoad) {
-	                AssetManager.onComplete();
-	            }
+	            AssetManager.assetLoaded();
 	        });
-	        // loader.load(
-	        //     asset.source,
-	        //     onload(function (texture) {    // load completed
-	        //         asset.material = new THREE.MeshBasicMaterial({
-	        //             map: texture
-	        //         });
-	        //     }),
-	        //     function (xhr) {    // load progress
-	        //         console.log( (xhr.loaded / xhr.total * 100) + '% loaded' );
-	        //     },
-	        //     function (xhr) {    // load error
-	        //         console.log( 'An error happened' );
-	        //     }
-	        // );
+	    };
+	    AssetManager.loadThreeFont = function (asset) {
+	        var loader = new THREE.FontLoader();
+	        loader.load(asset.source, function (response) {
+	            asset.font = response;
+	            AssetManager.assetLoaded();
+	        });
+	    };
+	    AssetManager.assetLoaded = function () {
+	        AssetManager.numAssetsLoaded++;
+	        AssetManager.onProgress();
+	        if (AssetManager.numAssetsLoaded === AssetManager.numAssetsToLoad) {
+	            AssetManager.onComplete();
+	        }
 	    };
 	    AssetManager.getAssetByTag = function (tag) {
 	        return AssetManager.assets[tag];
@@ -53357,10 +53358,17 @@
 	    };
 	    AssetManager.imgPath = "./../assets/graphics";
 	    AssetManager.soundPath = "./../assets/sounds";
+	    AssetManager.threeFontPath = "./../assets/threeTypefaces/";
 	    AssetManager.assets = {
 	        leftButton: { type: "texture", source: "./../assets/graphics/buttonLeft.png", tag: "buttonLeft" },
 	        downButton: { type: "texture", source: "./../assets/graphics/buttonDown.png", tag: "buttonDown" },
-	        rightButton: { type: "texture", source: "./../assets/graphics/buttonRight.png", tag: "buttonRightt" }
+	        rightButton: { type: "texture", source: "./../assets/graphics/buttonRight.png", tag: "buttonRight" },
+	        gentilis_bold: { type: "threeFont", source: AssetManager.threeFontPath + "gentilis_bold" + ".typeface.js", font: null },
+	        gentilis_regular: { type: "threeFont", source: AssetManager.threeFontPath + "gentilis_regular" + ".typeface.js", font: null },
+	        helvetiker_bold: { type: "threeFont", source: AssetManager.threeFontPath + "helvetiker_bold" + ".typeface.js", font: null },
+	        helvetiker_regular: { type: "threeFont", source: AssetManager.threeFontPath + "helvetiker_regular" + ".typeface.js", font: null },
+	        optimer_bold: { type: "threeFont", source: AssetManager.threeFontPath + "optimer_bold" + ".typeface.js", font: null },
+	        optimer_regular: { type: "threeFont", source: AssetManager.threeFontPath + "optimer_regular" + ".typeface.js", font: null }
 	    };
 	    AssetManager.numAssetsToLoad = 0;
 	    AssetManager.numAssetsLoaded = 0;
@@ -65949,6 +65957,7 @@
 	};
 	var THREE = __webpack_require__(3);
 	var GameScreen = __webpack_require__(9);
+	var AssetManager = __webpack_require__(5);
 	var LoadingScreen = (function (_super) {
 	    __extends(LoadingScreen, _super);
 	    function LoadingScreen(options) {
@@ -65965,23 +65974,24 @@
 	        this.numIncrements = 4;
 	        this.screenWidth = options.screenDim.width;
 	        this.screenHeight = options.screenDim.height;
-	        textGeo = new THREE.TextGeometry(text, {
-	            font: font,
-	            size: size,
-	            height: height,
-	            curveSegments: curveSegments,
-	            bevelThickness: bevelThickness,
-	            bevelSize: bevelSize,
-	            bevelEnabled: bevelEnabled,
-	            material: 0,
-	            extrudeMaterial: 1
-	        });
-	        // let pgBarGeometry = new THREE.PlaneGeometry(this.pgBar.width, this.pgBar.height, 32);
-	        // let pgBarMaterial = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
-	        // let pgBarMesh = new THREE.Mesh( pgBarGeometry , pgBarMaterial );
-	        // pgBarMesh.position.x = this.minX;
-	        // this.currentPgBar = pgBarMesh;
-	        // this.scene.add( this.currentPgBar );
+	        // load a font for use on this screen
+	        var loader = new THREE.FontLoader();
+	        var that = this;
+	        loader.load(AssetManager.AssetManager.assets.gentilis_regular.source, function (response) {
+	            AssetManager.AssetManager.assets.gentilis_regular.font = response;
+	            that.textGeo = new THREE.TextGeometry("Please Wait", {
+	                font: AssetManager.AssetManager.assets.gentilis_regular.font,
+	                size: 25,
+	                height: 0,
+	                curveSegments: 48,
+	                bevelEnabled: false
+	            });
+	            THREE.GeometryUtils.center(that.textGeo);
+	            that.textMat = new THREE.MeshBasicMaterial({});
+	            that.textMesh = new THREE.Mesh(that.textGeo, that.textMat);
+	            that.textMesh.position.y = 20;
+	            that.scene.add(that.textMesh);
+	        }, that);
 	        this.createLights();
 	        // center the camera
 	        this.positionCamera(0, 10, 18);
@@ -65991,8 +66001,8 @@
 	    LoadingScreen.prototype.initProgressBar = function (numberItems) {
 	        this.numIncrements = numberItems;
 	    };
+	    // just in case we need an update loop for this screen
 	    LoadingScreen.prototype.update = function (dt) {
-	        debugger;
 	    };
 	    LoadingScreen.prototype.testProgressBar = function () {
 	        var increment = 0;
@@ -66011,6 +66021,7 @@
 	        var pgBarMesh = new THREE.Mesh(pgBarGeometry, pgBarMaterial);
 	        var xPos = this.minX + (LoadingScreen.incrementCounter * incrementWidth / 2);
 	        pgBarMesh.position.x = xPos;
+	        pgBarMesh.position.y = -40;
 	        this.currentPgBar = pgBarMesh;
 	        this.scene.add(this.currentPgBar);
 	        console.log(xPos + " : " + barWidth);
