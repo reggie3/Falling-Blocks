@@ -53382,7 +53382,7 @@
 	        blueProgressBar: { type: "texture", source: AssetManager.imgPath + "blueBar.jpg", material: null },
 	        bkgLoading: { type: "texture", source: AssetManager.imgPath + "bkgLoadingScreen.jpg", material: null },
 	        switch: { type: "sound", source: AssetManager.soundPath + "218115__mastersdisaster__switch-on-livingroom.wav", soundSprite: null },
-	        click: { type: "sound", source: AssetManager.soundPath + "256116__kwahmah-02__click.wav", soundSprite: null },
+	        click: { type: "sound", source: AssetManager.soundPath + "Click2-Sebastian-759472264.mp3", soundSprite: null },
 	        snap: { type: "sound", source: AssetManager.soundPath + "177496__snapper4298__snap-1.wav", soundSprite: null }
 	    };
 	    AssetManager.numAssetsToLoad = 0;
@@ -68428,7 +68428,10 @@
 /* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
+	/// <reference path="./defs/tween.js/tween.js.d.ts" />
+	var TWEEN = __webpack_require__(14);
 	var THREE = __webpack_require__(3);
+	var AssetManager = __webpack_require__(5);
 	var Utils = (function () {
 	    function Utils() {
 	    }
@@ -68511,10 +68514,11 @@
 	    // start the tweens associcated with pushing a button that is a THREE.Object3D
 	    Utils.pushButton = function (btn) {
 	        var tween = new TWEEN.Tween(btn.scale)
-	            .to({ x: .9, y: .9 }, 100)
+	            .to({ x: .9, y: .9 }, 50)
 	            .repeat(1)
 	            .yoyo(true)
 	            .start();
+	        AssetManager.AssetManager.assets.click.soundSprite.play();
 	    };
 	    return Utils;
 	})();

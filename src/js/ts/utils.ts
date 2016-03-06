@@ -1,5 +1,9 @@
+/// <reference path="./defs/tween.js/tween.js.d.ts" />
+
+import * as TWEEN from "tween.js";
 import * as THREE from "three";
 import AssetManager = require("./assetManager");
+
 
 export class Utils {
     static hammerEventReceived(event, camera, intersectees) {
@@ -101,7 +105,7 @@ export class Utils {
     // start the tweens associcated with pushing a button that is a THREE.Object3D
     static pushButton(btn) {
         let tween = new TWEEN.Tween(btn.scale)
-            .to({x: .9, y: .9}, 100)
+            .to({x: .9, y: .9}, 50)
             .repeat(1)
             .yoyo(true)
             .start();

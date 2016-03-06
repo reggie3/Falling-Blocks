@@ -27,7 +27,7 @@ export class AssetManager {
         blueProgressBar: {type: "texture", source: AssetManager.imgPath + "blueBar.jpg", material: null},
         bkgLoading: {type: "texture", source: AssetManager.imgPath + "bkgLoadingScreen.jpg", material: null},
         switch: {type: "sound", source: AssetManager.soundPath + "218115__mastersdisaster__switch-on-livingroom.wav", soundSprite: null},
-        click: {type: "sound", source: AssetManager.soundPath + "256116__kwahmah-02__click.wav", soundSprite: null},
+        click: {type: "sound", source: AssetManager.soundPath + "Click2-Sebastian-759472264.mp3", soundSprite: null},
         snap: {type: "sound", source: AssetManager.soundPath + "177496__snapper4298__snap-1.wav", soundSprite: null}
     };
     static numAssetsToLoad = 0;
