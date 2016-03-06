@@ -57,7 +57,8 @@ export class Utils {
     //  returns an object3D to be added to a scene
     static createThreeButton(label, color, font, id) {
         let btn = new THREE.Object3D();
-        let glowAdd = 1.15; // the multiplier size of the glow portion
+        let textPadding = 1.50; // how much bigger the button is than the text
+        let glowPadding = 20; // the multiplier size of the glow portion
 
         let startTextGeo = new THREE.TextGeometry(label, {
             font: font,
@@ -70,15 +71,16 @@ export class Utils {
         let textMat = new THREE.MeshBasicMaterial({});
         let textMesh = new THREE.Mesh(startTextGeo, textMat);
 
-        let butWidth = 96;
-        let butHeight = 60;
+        let textSize = textMesh.geometry.boundingBox.max.sub(textMesh.geometry.boundingBox.min);
+        let butWidth = textSize.x * textPadding;
+        let butHeight = textSize.y * textPadding;
         let foreGeo = new THREE.PlaneGeometry(butWidth, butHeight);
         let foreMat  = new THREE.MeshBasicMaterial({
             color: color
         });
 
         let foreMesh = new THREE.Mesh(foreGeo, foreMat);
-        let glowGeo = new THREE.PlaneGeometry(butWidth * glowAdd, butHeight * glowAdd);
+        let glowGeo = new THREE.PlaneGeometry(butWidth + glowPadding, butHeight + glowPadding);
         let glowMat  = new THREE.MeshBasicMaterial({
             color: color,
             opacity: .6,
