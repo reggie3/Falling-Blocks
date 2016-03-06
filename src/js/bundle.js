@@ -61,7 +61,7 @@
 	/// <reference path="./loadingScreen.ts" />
 	/// <reference path="./startScreen.ts" />
 	/// <reference path="./threeItem.ts" />
-	/// <reference path="./control.ts" />
+	/// <reference path="./controls.ts" />
 	/// <reference path="./fallingItem.ts" />
 	var Hammer = __webpack_require__(2);
 	var THREE = __webpack_require__(3);
@@ -72,9 +72,9 @@
 	var SettingsScreen = __webpack_require__(11);
 	var StartScreen = __webpack_require__(12);
 	var LoadingScreen = __webpack_require__(13);
-	var PlayScreen = __webpack_require__(16);
+	var PlayScreen = __webpack_require__(18);
 	var Candy = __webpack_require__(20);
-	var Control = __webpack_require__(19);
+	var Controls = __webpack_require__(16);
 	var FallingItem = __webpack_require__(21);
 	var game;
 	var playScreen;
@@ -120,7 +120,8 @@
 	        screenDim: {
 	            width: GameScreen.Screen.getWidth(),
 	            height: GameScreen.Screen.getHeight()
-	        }
+	        },
+	        nextScreen: playScreen
 	    }, doPreloadAndCreateScreens);
 	    // show the loading screen
 	    GameScreen.Screen.setCurrentcreen(loadingScreen);
@@ -159,7 +160,8 @@
 	            name: "playScreen",
 	            overlay: "playScreenOverlay",
 	            order: 1,
-	            blockWidth: blockWidth
+	            blockWidth: blockWidth,
+	            prevScreen: loadingScreen
 	        });
 	        loadingScreen.updateProgress(1);
 	        startScreen = new StartScreen.StartScreen({
@@ -176,8 +178,9 @@
 	            blockWidth: blockWidth
 	        });
 	        loadingScreen.updateProgress(1);
-	        // automatically jump to the game play screen after all the assets are loaded
-	        // GameScreen.Screen.setCurrentcreen(playScreen);
+	        // set up the next and prev screens for the individual screens
+	        loadingScreen.nextScreen = playScreen;
+	        playScreen.prevScreen = loadingScreen;
 	    });
 	}
 	function createFallingItem(screen) {
@@ -227,7 +230,7 @@
 	        worldCoords.unproject(playScreen.camera);
 	        raycaster.set(playScreen.camera.position, worldCoords.sub(playScreen.camera.position).normalize());
 	    }
-	    var intersectionArray = raycaster.intersectObjects(Control.Control.meshes);
+	    var intersectionArray = raycaster.intersectObjects(Controls.Controls.meshes);
 	    if (intersectionArray.length > 0) {
 	        resolveControlInteraction(intersectionArray);
 	    }
@@ -273,7 +276,7 @@
 	    // }
 	    if (intersectedObjects[0].object.userData.hasOwnProperty("controlID")) {
 	        // get the control name
-	        var controlName = Control.Control.getControlByID(intersectedObjects[0].object.userData.controlID).name;
+	        var controlName = Controls.Controls.getControlByID(intersectedObjects[0].object.userData.controlID).name;
 	        switch (controlName) {
 	            case "leftButton":
 	                console.log("left");
@@ -53389,6 +53392,7 @@
 	    AssetManager.numAssetsLoaded = 0;
 	    AssetManager.image = {};
 	    AssetManager.sounds = {};
+	    AssetManager.allAssetsLoaded = false;
 	    return AssetManager;
 	})();
 	exports.AssetManager = AssetManager;
@@ -67188,6 +67192,12 @@
 	        if (options.overlay) {
 	            this.overlay = options.overlay;
 	        }
+	        if (options.prevScreen) {
+	            this.prevScreen = options.prevScreen;
+	        }
+	        if (options.nextScreen) {
+	            this.nextScreen = options.nextScreen;
+	        }
 	        this.scene = new THREE.Scene();
 	        this.camera = new THREE.OrthographicCamera(-Screen.width / 2, Screen.width / 2, Screen.height / 2, -Screen.height / 2, 0.01, 25);
 	        // this.camera = new THREE.PerspectiveCamera(
@@ -67335,6 +67345,7 @@
 	var GameScreen = __webpack_require__(10);
 	var AssetManager = __webpack_require__(5);
 	var Utils = __webpack_require__(15);
+	var Controls = __webpack_require__(16);
 	var Hammer = __webpack_require__(2);
 	var LoadingScreen = (function (_super) {
 	    __extends(LoadingScreen, _super);
@@ -67461,6 +67472,7 @@
 	            case "loaded2":
 	                this.screenState = "loadingComplete";
 	                console.log("loading complete");
+	                AssetManager.AssetManager.allAssetsLoaded = true;
 	                this.showGameStart();
 	                break;
 	        }
@@ -67500,7 +67512,7 @@
 	    LoadingScreen.prototype.showGameStart = function () {
 	        this.scene.remove(this.currentPgBar);
 	        this.scene.remove(this.textMesh);
-	        this.startButton = Utils.Utils.createThreeButton("Start", 0x1111ff, AssetManager.AssetManager.assets.helvetiker_regular.font, "startButton");
+	        this.startButton = Controls.Controls.createThreeButton("Start", 0x1111ff, AssetManager.AssetManager.assets.helvetiker_regular.font, "startButton");
 	        this.touchableMeshes = this.touchableMeshes.concat(this.startButton.children);
 	        this.scene.add(this.startButton);
 	    };
@@ -67516,7 +67528,8 @@
 	            switch (touched[0].object.userData.id) {
 	                case "startButton":
 	                    console.log("start");
-	                    Utils.Utils.pushButton(this.startButton);
+	                    Controls.Controls.pushButton(this.startButton);
+	                    GameScreen.Screen.setCurrentcreen(this.nextScreen);
 	                    break;
 	            }
 	        }
@@ -68429,9 +68442,7 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	/// <reference path="./defs/tween.js/tween.js.d.ts" />
-	var TWEEN = __webpack_require__(14);
 	var THREE = __webpack_require__(3);
-	var AssetManager = __webpack_require__(5);
 	var Utils = (function () {
 	    function Utils() {
 	    }
@@ -68471,12 +68482,92 @@
 	        var worldCoords = new THREE.Vector3((coords.x / window.innerWidth) * 2 - 1, -(coords.y / window.innerHeight) * 2 + 1, -1);
 	        return worldCoords;
 	    };
+	    return Utils;
+	})();
+	exports.Utils = Utils;
+
+
+/***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	/// <reference path="./defs/tween.js/tween.js.d.ts" />
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var TWEEN = __webpack_require__(14);
+	var THREE = __webpack_require__(3);
+	var ThreeItem = __webpack_require__(17);
+	var AssetManager = __webpack_require__(5);
+	var Controls = (function (_super) {
+	    __extends(Controls, _super);
+	    function Controls(shape, name, pos, options) {
+	        _super.call(this);
+	        this.thisControlID = Controls.controlID;
+	        this.name = name;
+	        switch (shape) {
+	            case "sphere":
+	                this.createSphereMesh(options);
+	                break;
+	            case "circle":
+	                this.createCircleMesh(options);
+	                break;
+	            case "square":
+	            case "box":
+	                this.createBoxMesh(options);
+	                break;
+	        }
+	        this.mesh.position.set(pos.x, pos.y, pos.z);
+	        this.mesh.userData.controlID = this.thisControlID;
+	        Controls.controls[this.thisControlID] = this;
+	        Controls.meshes.push(this.mesh);
+	        Controls.controlID++;
+	    }
+	    Controls.getControlByID = function (id) {
+	        return Controls.controls[id];
+	    };
+	    Controls.prototype.getControlByName = function (name) {
+	        for (var control in Controls.controls) {
+	            if (Controls.controls.hasOwnProperty(control)) {
+	                if (Controls.controls[control].name === name) {
+	                    return Controls.controls[control];
+	                }
+	            }
+	        }
+	    };
+	    Controls.prototype.createSphereMesh = function (options) {
+	        this.geometry = new THREE.SphereGeometry(options && options.size || null);
+	        this.material = new THREE.MeshBasicMaterial({
+	            color: options && options.color || null
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	    };
+	    Controls.prototype.createBoxMesh = function (options) {
+	        this.geometry = new THREE.BoxGeometry(options && options.size || null, options && options.size || null, options && options.size || null);
+	        this.material = new THREE.MeshBasicMaterial({
+	            color: options && options.color || null
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	    };
+	    Controls.prototype.createCircleMesh = function (options) {
+	        this.geometry = new THREE.CircleGeometry(options && options.size || null, options && options.segments || null);
+	        this.material = new THREE.MeshBasicMaterial({
+	            // color: options && options.color || null,
+	            map: AssetManager.AssetManager.getAssetByTag(this.name).texture
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	    };
+	    Controls.prototype.update = function () {
+	    };
 	    // create a button
 	    //  returns an object3D to be added to a scene
-	    Utils.createThreeButton = function (label, color, font, id) {
+	    Controls.createThreeButton = function (label, color, font, id) {
 	        var btn = new THREE.Object3D();
 	        var textPadding = 1.50; // how much bigger the button is than the text
-	        var glowPadding = 20; // the multiplier size of the glow portion
+	        var glowPadding = 12; // the multiplier size of the glow portion
 	        var startTextGeo = new THREE.TextGeometry(label, {
 	            font: font,
 	            size: 25,
@@ -68498,23 +68589,32 @@
 	        var glowGeo = new THREE.PlaneGeometry(butWidth + glowPadding, butHeight + glowPadding);
 	        var glowMat = new THREE.MeshBasicMaterial({
 	            color: color,
-	            opacity: .6,
+	            opacity: .4,
 	            transparent: true
 	        });
 	        var gloMesh = new THREE.Mesh(glowGeo, glowMat);
+	        var hlGeo = new THREE.PlaneGeometry(butWidth + glowPadding, butHeight + glowPadding);
+	        var hlMat = new THREE.MeshBasicMaterial({
+	            opacity: .75,
+	            transparent: true
+	        });
+	        var hlMesh = new THREE.Mesh(glowGeo, glowMat);
 	        foreMesh.position.z = -1;
 	        gloMesh.position.z = -2;
+	        hlMesh.position.z = -3;
 	        // label the meshes as part of the button
 	        gloMesh.userData.id = id;
 	        textMesh.userData.id = id;
 	        foreMesh.userData.id = id;
+	        hlMesh.userData.id = id;
+	        btn.add(hlMesh);
 	        btn.add(gloMesh);
 	        btn.add(foreMesh);
 	        btn.add(textMesh);
 	        return btn;
 	    };
 	    // start the tweens associcated with pushing a button that is a THREE.Object3D
-	    Utils.pushButton = function (btn) {
+	    Controls.pushButton = function (btn) {
 	        var tween = new TWEEN.Tween(btn.scale)
 	            .to({ x: .9, y: .9 }, 50)
 	            .repeat(1)
@@ -68522,13 +68622,61 @@
 	            .start();
 	        AssetManager.AssetManager.assets.click.soundSprite.play();
 	    };
-	    return Utils;
-	})();
-	exports.Utils = Utils;
+	    Controls.controlID = 0;
+	    Controls.controls = {};
+	    Controls.meshes = []; // an array of meshes to use in touch events
+	    return Controls;
+	})(ThreeItem.ThreeItem);
+	exports.Controls = Controls;
 
 
 /***/ },
-/* 16 */
+/* 17 */
+/***/ function(module, exports) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	var ThreeItem = (function () {
+	    function ThreeItem() {
+	        this.thisThreeItemID = ThreeItem.threeItemID;
+	        // store this physicsObject in an array for later
+	        ThreeItem.threeItems[this.thisThreeItemID] = this;
+	        // console.log("Object " + ThreeItem.threeItemID + " created.");
+	        ThreeItem.threeItemID++;
+	    }
+	    // get items by id
+	    ThreeItem.getItemByID = function (id) {
+	        return ThreeItem.threeItems[id];
+	    };
+	    // get items by name
+	    ThreeItem.getItemByName = function (name) {
+	        for (var item in ThreeItem.threeItems) {
+	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
+	                if (ThreeItem.threeItems[item].name === name) {
+	                    return ThreeItem.threeItems[item];
+	                }
+	            }
+	        }
+	    };
+	    // call the update function on every three item we've made
+	    ThreeItem.update = function (dt, time) {
+	        for (var item in ThreeItem.threeItems) {
+	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
+	                ThreeItem.threeItems[item].update(dt, time);
+	            }
+	        }
+	    };
+	    ThreeItem.prototype.killThreeItem = function (id) {
+	        delete ThreeItem.threeItems[id];
+	    };
+	    ThreeItem.threeItemID = 0;
+	    ThreeItem.threeItems = {};
+	    return ThreeItem;
+	})();
+	exports.ThreeItem = ThreeItem;
+
+
+/***/ },
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/// <reference path="./defs/three/three.d.ts" />
@@ -68539,8 +68687,8 @@
 	};
 	var THREE = __webpack_require__(3);
 	var GameScreen = __webpack_require__(10);
-	var StaticItem = __webpack_require__(17);
-	var Control = __webpack_require__(19);
+	var StaticItem = __webpack_require__(19);
+	var Controls = __webpack_require__(16);
 	var PlayScreen = (function (_super) {
 	    __extends(PlayScreen, _super);
 	    function PlayScreen(options) {
@@ -68563,17 +68711,17 @@
 	        this.add(ground);
 	        // create controls
 	        var buttonYDisplacement = 2.5 * this.blockWidth;
-	        this.controls.leftButton = new Control.Control("circle", "leftButton", new THREE.Vector3(-5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
+	        this.controls.leftButton = new Controls.Controls("circle", "leftButton", new THREE.Vector3(-5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
 	            size: this.blockWidth * 1.5,
 	            segments: 32,
 	            color: new THREE.Color("rgb(140,140,0)")
 	        });
-	        this.controls.downButton = new Control.Control("circle", "downButton", new THREE.Vector3(0, groundY - buttonYDisplacement, 0), {
+	        this.controls.downButton = new Controls.Controls("circle", "downButton", new THREE.Vector3(0, groundY - buttonYDisplacement, 0), {
 	            size: this.blockWidth * 1.5,
 	            segments: 32,
 	            color: new THREE.Color("rgb(140,140,0)")
 	        });
-	        this.controls.rightButton = new Control.Control("circle", "rightButton", new THREE.Vector3(5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
+	        this.controls.rightButton = new Controls.Controls("circle", "rightButton", new THREE.Vector3(5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
 	            size: this.blockWidth * 1.5,
 	            segments: 32,
 	            color: new THREE.Color("rgb(140,140,0)")
@@ -68598,7 +68746,7 @@
 
 
 /***/ },
-/* 17 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/// <reference path="./defs/three/three.d.ts" />
@@ -68609,7 +68757,7 @@
 	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 	};
 	var THREE = __webpack_require__(3);
-	var ThreeItem = __webpack_require__(18);
+	var ThreeItem = __webpack_require__(17);
 	var StaticItem = (function (_super) {
 	    __extends(StaticItem, _super);
 	    function StaticItem(options) {
@@ -68655,132 +68803,6 @@
 	    return StaticItem;
 	})(ThreeItem.ThreeItem);
 	exports.StaticItem = StaticItem;
-
-
-/***/ },
-/* 18 */
-/***/ function(module, exports) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	var ThreeItem = (function () {
-	    function ThreeItem() {
-	        this.thisThreeItemID = ThreeItem.threeItemID;
-	        // store this physicsObject in an array for later
-	        ThreeItem.threeItems[this.thisThreeItemID] = this;
-	        // console.log("Object " + ThreeItem.threeItemID + " created.");
-	        ThreeItem.threeItemID++;
-	    }
-	    // get items by id
-	    ThreeItem.getItemByID = function (id) {
-	        return ThreeItem.threeItems[id];
-	    };
-	    // get items by name
-	    ThreeItem.getItemByName = function (name) {
-	        for (var item in ThreeItem.threeItems) {
-	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
-	                if (ThreeItem.threeItems[item].name === name) {
-	                    return ThreeItem.threeItems[item];
-	                }
-	            }
-	        }
-	    };
-	    // call the update function on every three item we've made
-	    ThreeItem.update = function (dt, time) {
-	        for (var item in ThreeItem.threeItems) {
-	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
-	                ThreeItem.threeItems[item].update(dt, time);
-	            }
-	        }
-	    };
-	    ThreeItem.prototype.killThreeItem = function (id) {
-	        delete ThreeItem.threeItems[id];
-	    };
-	    ThreeItem.threeItemID = 0;
-	    ThreeItem.threeItems = {};
-	    return ThreeItem;
-	})();
-	exports.ThreeItem = ThreeItem;
-
-
-/***/ },
-/* 19 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var THREE = __webpack_require__(3);
-	var ThreeItem = __webpack_require__(18);
-	var AssetManager = __webpack_require__(5);
-	var Control = (function (_super) {
-	    __extends(Control, _super);
-	    function Control(shape, name, pos, options) {
-	        _super.call(this);
-	        this.thisControlID = Control.controlID;
-	        this.name = name;
-	        switch (shape) {
-	            case "sphere":
-	                this.createSphereMesh(options);
-	                break;
-	            case "circle":
-	                this.createCircleMesh(options);
-	                break;
-	            case "square":
-	            case "box":
-	                this.createBoxMesh(options);
-	                break;
-	        }
-	        this.mesh.position.set(pos.x, pos.y, pos.z);
-	        this.mesh.userData.controlID = this.thisControlID;
-	        Control.controls[this.thisControlID] = this;
-	        Control.meshes.push(this.mesh);
-	        Control.controlID++;
-	    }
-	    Control.getControlByID = function (id) {
-	        return Control.controls[id];
-	    };
-	    Control.prototype.getControlByName = function (name) {
-	        for (var control in Control.controls) {
-	            if (Control.controls.hasOwnProperty(control)) {
-	                if (Control.controls[control].name === name) {
-	                    return Control.controls[control];
-	                }
-	            }
-	        }
-	    };
-	    Control.prototype.createSphereMesh = function (options) {
-	        this.geometry = new THREE.SphereGeometry(options && options.size || null);
-	        this.material = new THREE.MeshBasicMaterial({
-	            color: options && options.color || null
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	    };
-	    Control.prototype.createBoxMesh = function (options) {
-	        this.geometry = new THREE.BoxGeometry(options && options.size || null, options && options.size || null, options && options.size || null);
-	        this.material = new THREE.MeshBasicMaterial({
-	            color: options && options.color || null
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	    };
-	    Control.prototype.createCircleMesh = function (options) {
-	        this.geometry = new THREE.CircleGeometry(options && options.size || null, options && options.segments || null);
-	        this.material = new THREE.MeshBasicMaterial({
-	            // color: options && options.color || null,
-	            map: AssetManager.AssetManager.getAssetByTag(this.name).texture
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	    };
-	    Control.prototype.update = function () {
-	    };
-	    Control.controlID = 0;
-	    Control.controls = {};
-	    Control.meshes = []; // an array of meshes to use in touch events
-	    return Control;
-	})(ThreeItem.ThreeItem);
-	exports.Control = Control;
 
 
 /***/ },
@@ -69033,7 +69055,7 @@
 	};
 	var TWEEN = __webpack_require__(14);
 	var THREE = __webpack_require__(3);
-	var ThreeItem = __webpack_require__(18);
+	var ThreeItem = __webpack_require__(17);
 	var FallingItem = (function (_super) {
 	    __extends(FallingItem, _super);
 	    function FallingItem(options) {

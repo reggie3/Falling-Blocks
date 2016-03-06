@@ -36,6 +36,7 @@ export class AssetManager {
     static sounds = {};
     static onProgress;
     static onComplete;
+    static allAssetsLoaded = false;
 
     constructor() {
 

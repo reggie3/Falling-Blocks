@@ -20,6 +20,8 @@ export class Screen {
     ambLight;
     static width: number;
     static height: number;
+    prevScreen;
+    nextScreen;
 
     constructor(options?) {
         if (options.name ) {
@@ -29,6 +31,12 @@ export class Screen {
         }
         if (options.overlay ) {
             this.overlay = options.overlay;
+        }
+        if (options.prevScreen ) {
+            this.prevScreen = options.prevScreen;
+        }
+        if (options.nextScreen ) {
+            this.nextScreen = options.nextScreen;
         }
 
         this.scene = new THREE.Scene();

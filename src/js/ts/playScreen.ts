@@ -5,7 +5,7 @@ import * as THREE from "three";
 import GameScreen = require("./gameScreen");
 import FallingItem = require("./fallingItem");
 import StaticItem = require("./staticItem");
-import Control = require("./control");
+import Controls = require("./controls");
 
 export class PlayScreen extends GameScreen.Screen {
     controls = { leftButton: null, downButton: null, rightButton: null };
@@ -31,19 +31,19 @@ export class PlayScreen extends GameScreen.Screen {
 
         // create controls
         let buttonYDisplacement = 2.5 * this.blockWidth;
-        this.controls.leftButton = new Control.Control("circle", "leftButton",
+        this.controls.leftButton = new Controls.Controls("circle", "leftButton",
         new THREE.Vector3(-5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
             size: this.blockWidth * 1.5,
             segments: 32,
             color: new THREE.Color("rgb(140,140,0)")
         });
-        this.controls.downButton = new Control.Control("circle", "downButton",
+        this.controls.downButton = new Controls.Controls("circle", "downButton",
         new THREE.Vector3(0,  groundY - buttonYDisplacement, 0), {
             size: this.blockWidth * 1.5,
             segments: 32,
             color: new THREE.Color("rgb(140,140,0)")
         });
-        this.controls.rightButton = new Control.Control("circle", "rightButton",
+        this.controls.rightButton = new Controls.Controls("circle", "rightButton",
         new THREE.Vector3(5 * this.blockWidth,  groundY - buttonYDisplacement, 0), {
             size: this.blockWidth * 1.5,
             segments: 32,

@@ -11,7 +11,7 @@
 /// <reference path="./loadingScreen.ts" />
 /// <reference path="./startScreen.ts" />
 /// <reference path="./threeItem.ts" />
-/// <reference path="./control.ts" />
+/// <reference path="./controls.ts" />
 /// <reference path="./fallingItem.ts" />
 
 import * as Hammer from "hammerjs";
@@ -28,7 +28,7 @@ import LoadingScreen = require("./loadingScreen");
 import PlayScreen = require("./playScreen");
 import ThreeItem = require("./threeItem");
 import Candy = require("./candy");
-import Control = require("./control");
+import Controls = require("./controls");
 import FallingItem = require("./fallingItem");
 
 let game;
@@ -81,7 +81,8 @@ function createGame() {
         screenDim : {
             width: GameScreen.Screen.getWidth(),
             height: GameScreen.Screen.getHeight()
-        }
+        },
+        nextScreen: playScreen
     }, doPreloadAndCreateScreens);
 
     // show the loading screen
@@ -132,7 +133,8 @@ function doPreloadAndCreateScreens() {
                 name: "playScreen",
                 overlay: "playScreenOverlay",
                 order: 1,
-                blockWidth: blockWidth
+                blockWidth: blockWidth,
+                prevScreen: loadingScreen
             });
              loadingScreen.updateProgress(1);
             startScreen = new StartScreen.StartScreen({
@@ -149,8 +151,10 @@ function doPreloadAndCreateScreens() {
                 blockWidth: blockWidth
             });
             loadingScreen.updateProgress(1);
-            // automatically jump to the game play screen after all the assets are loaded
-            // GameScreen.Screen.setCurrentcreen(playScreen);
+
+            // set up the next and prev screens for the individual screens
+            loadingScreen.nextScreen = playScreen;
+            playScreen.prevScreen = loadingScreen;
         });
 }
 
@@ -210,7 +214,7 @@ function hammerEventReceived(event) {
         raycaster.set(playScreen.camera.position, worldCoords.sub(playScreen.camera.position).normalize());
     }
 
-    let intersectionArray = raycaster.intersectObjects(Control.Control.meshes);
+    let intersectionArray = raycaster.intersectObjects(Controls.Controls.meshes);
     if (intersectionArray.length > 0) {
         resolveControlInteraction(intersectionArray);
     }
@@ -269,7 +273,7 @@ function resolveControlInteraction(intersectedObjects) {
     // }
     if (intersectedObjects[0].object.userData.hasOwnProperty("controlID")) {
         // get the control name
-        let controlName = Control.Control.getControlByID(intersectedObjects[0].object.userData.controlID).name;
+        let controlName = Controls.Controls.getControlByID(intersectedObjects[0].object.userData.controlID).name;
         switch (controlName) {
             case "leftButton":
                 console.log("left");

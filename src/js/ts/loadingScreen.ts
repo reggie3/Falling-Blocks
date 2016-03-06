@@ -6,6 +6,8 @@ import * as THREE from "three";
 import GameScreen = require("./gameScreen");
 import AssetManager = require("./assetManager");
 import Utils = require("./utils");
+import Controls = require("./controls");
+import App = require("./app");
 import * as Hammer from "hammerjs";
 
 export class LoadingScreen extends GameScreen.Screen {
@@ -47,11 +49,10 @@ export class LoadingScreen extends GameScreen.Screen {
 
     minX = -100;   // the width of the pogress bar will be twice the absolute value of this number
     numIncrements = 4;
-
-
     hammer; // hammer.js instance
-
     touchableMeshes = []; // an array of touchable meshes
+
+
 
     constructor(options, callback) {
         super(options);
@@ -79,6 +80,7 @@ export class LoadingScreen extends GameScreen.Screen {
             that.hammerEventReceived(event);
         });
     }
+
     loadLocalAssets () {
         // load a font for use on this screen
         let loader = new THREE.FontLoader();
@@ -164,6 +166,7 @@ export class LoadingScreen extends GameScreen.Screen {
             case "loaded2":
                 this.screenState = "loadingComplete";
                 console.log("loading complete");
+                AssetManager.AssetManager.allAssetsLoaded = true;
                 this.showGameStart();
                 break;
         }
@@ -206,16 +209,14 @@ export class LoadingScreen extends GameScreen.Screen {
         // console.log(xPos + " : " + barWidth);
         if (LoadingScreen.curProgressCounter === this.numIncrements) {
             this.screenState = "loaded2";
-
         }
-
     }
 
     showGameStart() {
         this.scene.remove(this.currentPgBar);
         this.scene.remove(this.textMesh);
 
-       this.startButton = Utils.Utils.createThreeButton(
+       this.startButton = Controls.Controls.createThreeButton(
             "Start",
             0x1111ff,
             AssetManager.AssetManager.assets.helvetiker_regular.font,
@@ -223,7 +224,6 @@ export class LoadingScreen extends GameScreen.Screen {
         );
         this.touchableMeshes = this.touchableMeshes.concat(this.startButton.children);
         this.scene.add(this.startButton);
-
 
     }
     createLights() {
@@ -240,8 +240,8 @@ export class LoadingScreen extends GameScreen.Screen {
             switch (touched[0].object.userData.id) {
                 case "startButton":
                     console.log("start");
-                    Utils.Utils.pushButton(this.startButton);
-
+                    Controls.Controls.pushButton(this.startButton);
+                    GameScreen.Screen.setCurrentcreen(this.nextScreen);
                     break;
             }
         }
