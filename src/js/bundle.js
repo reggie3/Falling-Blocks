@@ -67,15 +67,15 @@
 	var THREE = __webpack_require__(3);
 	var $ = __webpack_require__(4);
 	var AssetManager = __webpack_require__(5);
-	var GameObject = __webpack_require__(8);
-	var GameScreen = __webpack_require__(9);
-	var SettingsScreen = __webpack_require__(10);
-	var StartScreen = __webpack_require__(11);
-	var LoadingScreen = __webpack_require__(12);
-	var PlayScreen = __webpack_require__(13);
-	var Candy = __webpack_require__(17);
-	var Control = __webpack_require__(16);
-	var FallingItem = __webpack_require__(18);
+	var GameObject = __webpack_require__(9);
+	var GameScreen = __webpack_require__(10);
+	var SettingsScreen = __webpack_require__(11);
+	var StartScreen = __webpack_require__(12);
+	var LoadingScreen = __webpack_require__(13);
+	var PlayScreen = __webpack_require__(16);
+	var Candy = __webpack_require__(20);
+	var Control = __webpack_require__(19);
+	var FallingItem = __webpack_require__(21);
 	var game;
 	var playScreen;
 	var loadingScreen;
@@ -111,6 +111,7 @@
 	    GameScreen.Screen.init();
 	    game = new GameObject.Game(GameScreen.Screen.getWidth(), GameScreen.Screen.getHeight());
 	    blockWidth = Math.floor(GameScreen.Screen.getWidth() / numBlocksAcrossScene);
+	    // load the loading screen first, and pass it a callback that loads and creates everything else
 	    loadingScreen = new LoadingScreen.LoadingScreen({
 	        name: "loadingScreen",
 	        overlay: "loadingOverlay",
@@ -120,42 +121,10 @@
 	            width: GameScreen.Screen.getWidth(),
 	            height: GameScreen.Screen.getHeight()
 	        }
-	    });
-	    // loadingScreen.show();
-	    GameScreen.Screen.setCurrentcreen(loadingScreen, function () {
-	        AssetManager.AssetManager.loadAssets(function (numberAssets) {
-	            console.log(numberAssets + " assets");
-	            // the loading screen progress bar will increment for each asset and each of the screens
-	            loadingScreen.initProgressBar(numberAssets + 3);
-	        }, function () {
-	            loadingScreen.updateProgressBar(1);
-	        }, function () {
-	            console.log("finished");
-	            // create the screens
-	            playScreen = new PlayScreen.PlayScreen({
-	                name: "playScreen",
-	                overlay: "playScreenOverlay",
-	                order: 1,
-	                blockWidth: blockWidth
-	            });
-	            loadingScreen.updateProgressBar(1);
-	            startScreen = new StartScreen.StartScreen({
-	                name: "startScreen",
-	                overlay: "startOverlay",
-	                order: 0,
-	                blockWidth: blockWidth
-	            });
-	            loadingScreen.updateProgressBar(1);
-	            settingsScreen = new SettingsScreen.SettingsScreen({
-	                name: "settingsScreen",
-	                overlay: "settingsOverlay",
-	                // order: 4,
-	                blockWidth: blockWidth
-	            });
-	            loadingScreen.updateProgressBar(1);
-	            // GameScreen.Screen.setCurrentcreen(playScreen);
-	        });
-	    });
+	    }, doPreloadAndCreateScreens);
+	    // show the loading screen
+	    GameScreen.Screen.setCurrentcreen(loadingScreen);
+	    // render loop
 	    var render = function () {
 	        requestAnimationFrame(render);
 	        Candy.Candy.update(game.clock.getDelta(), game.clock.getElapsedTime());
@@ -165,12 +134,51 @@
 	                    createFallingItem(screen);
 	                }
 	                break;
+	            case "loadingScreen":
+	                loadingScreen.update(game.clock.getDelta(), game.clock.getElapsedTime());
+	                break;
 	        }
 	        game.render(GameScreen.Screen.getCurrentScreen());
 	        // kill a random FallingItem to test if FallingItems drop after the one under them is removed from the screen
 	        // FallingItem.FallingItem.killRandom();
 	    };
 	    render();
+	}
+	// do all the presload tasks (create screens, objects, etc.)
+	function doPreloadAndCreateScreens() {
+	    AssetManager.AssetManager.loadAssets(function (numberAssets) {
+	        console.log(numberAssets + " assets");
+	        // the loading screen progress bar will increment for each asset and each of the screens
+	        loadingScreen.initProgressBar(numberAssets + 3);
+	    }, function () {
+	        loadingScreen.updateProgress(1);
+	    }, function () {
+	        console.log("finished");
+	        // create the screens
+	        playScreen = new PlayScreen.PlayScreen({
+	            name: "playScreen",
+	            overlay: "playScreenOverlay",
+	            order: 1,
+	            blockWidth: blockWidth
+	        });
+	        loadingScreen.updateProgress(1);
+	        startScreen = new StartScreen.StartScreen({
+	            name: "startScreen",
+	            overlay: "startOverlay",
+	            order: 0,
+	            blockWidth: blockWidth
+	        });
+	        loadingScreen.updateProgress(1);
+	        settingsScreen = new SettingsScreen.SettingsScreen({
+	            name: "settingsScreen",
+	            overlay: "settingsOverlay",
+	            // order: 4,
+	            blockWidth: blockWidth
+	        });
+	        loadingScreen.updateProgress(1);
+	        // automatically jump to the game play screen after all the assets are loaded
+	        // GameScreen.Screen.setCurrentcreen(playScreen);
+	    });
 	}
 	function createFallingItem(screen) {
 	    var min = 0; // left bound
@@ -53275,8 +53283,10 @@
 
 	/// <reference path="./defs/three/three.d.ts" />
 	/// <reference path="./defs/lodash/lodash.d.ts" />
+	/// <reference path="./defs/howler/howler.d.ts" />
 	var _ = __webpack_require__(6);
 	var THREE = __webpack_require__(3);
+	var Howl = __webpack_require__(8);
 	var AssetManager = (function () {
 	    function AssetManager() {
 	    }
@@ -53293,6 +53303,9 @@
 	                case "threeFont":
 	                    AssetManager.loadThreeFont(asset);
 	                    break;
+	                case "sound":
+	                    AssetManager.loadSound(asset);
+	                    break;
 	            }
 	            // console.log(value.source);
 	            // this.loadImage(value);
@@ -53306,18 +53319,11 @@
 	        // }
 	        return {};
 	    };
-	    AssetManager.loadImage = function (imageInfo) {
-	        // let img = new Image();
-	        // img.src = imageInfo.source;
-	        // img.onload = this.imageLoaded;
-	        // let queue = new createjs.LoadQueue();
-	        // queue.addEventListener("fileload", this.handleComplete);
-	        // queue.loadFile("./../assets/graphics/buttonDown.png");
-	        // queue.installPlugin(createjs.Sound);
-	        // queue.on("complete", this.handleComplete, this);
-	        // queue.loadManifest([
-	        //     {id: "buttonDown", src: "./../assets/graphics/buttonDown.png"}
-	        // ]);
+	    AssetManager.loadSound = function (asset) {
+	        asset.soundSprite = new Howl.Howl({
+	            urls: [asset.source]
+	        });
+	        AssetManager.assetLoaded();
 	    };
 	    AssetManager.loadTexture = function (asset) {
 	        var loader = new THREE.TextureLoader();
@@ -53325,6 +53331,7 @@
 	        // Function when resource is loaded
 	        function (texture) {
 	            // do something with the texture
+	            asset.texture = texture;
 	            asset.material = new THREE.MeshBasicMaterial({
 	                map: texture
 	            });
@@ -53356,19 +53363,27 @@
 	    AssetManager.prototype.handleComplete = function (a, b, c) {
 	        debugger;
 	    };
-	    AssetManager.imgPath = "./../assets/graphics";
-	    AssetManager.soundPath = "./../assets/sounds";
+	    AssetManager.imgPath = "./../assets/graphics/";
+	    AssetManager.soundPath = "./../assets/sounds/";
 	    AssetManager.threeFontPath = "./../assets/threeTypefaces/";
 	    AssetManager.assets = {
 	        leftButton: { type: "texture", source: "./../assets/graphics/buttonLeft.png", tag: "buttonLeft" },
 	        downButton: { type: "texture", source: "./../assets/graphics/buttonDown.png", tag: "buttonDown" },
 	        rightButton: { type: "texture", source: "./../assets/graphics/buttonRight.png", tag: "buttonRight" },
+	        btnRed: { type: "texture", source: AssetManager.imgPath + "btnRed.png", tag: "btnRed", material: null },
+	        btnCyan: { type: "texture", source: AssetManager.imgPath + "btnCyan.png", tag: "btnCyan", material: null },
+	        btnPurple: { type: "texture", source: AssetManager.imgPath + "btnPurple.png", tag: "btnPurple", material: null },
 	        gentilis_bold: { type: "threeFont", source: AssetManager.threeFontPath + "gentilis_bold" + ".typeface.js", font: null },
 	        gentilis_regular: { type: "threeFont", source: AssetManager.threeFontPath + "gentilis_regular" + ".typeface.js", font: null },
 	        helvetiker_bold: { type: "threeFont", source: AssetManager.threeFontPath + "helvetiker_bold" + ".typeface.js", font: null },
 	        helvetiker_regular: { type: "threeFont", source: AssetManager.threeFontPath + "helvetiker_regular" + ".typeface.js", font: null },
 	        optimer_bold: { type: "threeFont", source: AssetManager.threeFontPath + "optimer_bold" + ".typeface.js", font: null },
-	        optimer_regular: { type: "threeFont", source: AssetManager.threeFontPath + "optimer_regular" + ".typeface.js", font: null }
+	        optimer_regular: { type: "threeFont", source: AssetManager.threeFontPath + "optimer_regular" + ".typeface.js", font: null },
+	        blueProgressBar: { type: "texture", source: AssetManager.imgPath + "blueBar.jpg", material: null },
+	        bkgLoading: { type: "texture", source: AssetManager.imgPath + "bkgLoadingScreen.jpg", material: null },
+	        switch: { type: "sound", source: AssetManager.soundPath + "218115__mastersdisaster__switch-on-livingroom.wav", soundSprite: null },
+	        click: { type: "sound", source: AssetManager.soundPath + "256116__kwahmah-02__click.wav", soundSprite: null },
+	        snap: { type: "sound", source: AssetManager.soundPath + "177496__snapper4298__snap-1.wav", soundSprite: null }
 	    };
 	    AssetManager.numAssetsToLoad = 0;
 	    AssetManager.numAssetsLoaded = 0;
@@ -65757,6 +65772,1364 @@
 /* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
+	var __WEBPACK_AMD_DEFINE_RESULT__;/*!
+	 *  howler.js v1.1.29
+	 *  howlerjs.com
+	 *
+	 *  (c) 2013-2016, James Simpson of GoldFire Studios
+	 *  goldfirestudios.com
+	 *
+	 *  MIT License
+	 */
+	
+	(function() {
+	  // setup
+	  var cache = {};
+	
+	  // setup the audio context
+	  var ctx = null,
+	    usingWebAudio = true,
+	    noAudio = false;
+	  try {
+	    if (typeof AudioContext !== 'undefined') {
+	      ctx = new AudioContext();
+	    } else if (typeof webkitAudioContext !== 'undefined') {
+	      ctx = new webkitAudioContext();
+	    } else {
+	      usingWebAudio = false;
+	    }
+	  } catch(e) {
+	    usingWebAudio = false;
+	  }
+	
+	  if (!usingWebAudio) {
+	    if (typeof Audio !== 'undefined') {
+	      try {
+	        new Audio();
+	      } catch(e) {
+	        noAudio = true;
+	      }
+	    } else {
+	      noAudio = true;
+	    }
+	  }
+	
+	  // create a master gain node
+	  if (usingWebAudio) {
+	    var masterGain = (typeof ctx.createGain === 'undefined') ? ctx.createGainNode() : ctx.createGain();
+	    masterGain.gain.value = 1;
+	    masterGain.connect(ctx.destination);
+	  }
+	
+	  // create global controller
+	  var HowlerGlobal = function(codecs) {
+	    this._volume = 1;
+	    this._muted = false;
+	    this.usingWebAudio = usingWebAudio;
+	    this.ctx = ctx;
+	    this.noAudio = noAudio;
+	    this._howls = [];
+	    this._codecs = codecs;
+	    this.iOSAutoEnable = true;
+	  };
+	  HowlerGlobal.prototype = {
+	    /**
+	     * Get/set the global volume for all sounds.
+	     * @param  {Float} vol Volume from 0.0 to 1.0.
+	     * @return {Howler/Float}     Returns self or current volume.
+	     */
+	    volume: function(vol) {
+	      var self = this;
+	
+	      // make sure volume is a number
+	      vol = parseFloat(vol);
+	
+	      if (vol >= 0 && vol <= 1) {
+	        self._volume = vol;
+	
+	        if (usingWebAudio) {
+	          masterGain.gain.value = vol;
+	        }
+	
+	        // loop through cache and change volume of all nodes that are using HTML5 Audio
+	        for (var key in self._howls) {
+	          if (self._howls.hasOwnProperty(key) && self._howls[key]._webAudio === false) {
+	            // loop through the audio nodes
+	            for (var i=0; i<self._howls[key]._audioNode.length; i++) {
+	              self._howls[key]._audioNode[i].volume = self._howls[key]._volume * self._volume;
+	            }
+	          }
+	        }
+	
+	        return self;
+	      }
+	
+	      // return the current global volume
+	      return (usingWebAudio) ? masterGain.gain.value : self._volume;
+	    },
+	
+	    /**
+	     * Mute all sounds.
+	     * @return {Howler}
+	     */
+	    mute: function() {
+	      this._setMuted(true);
+	
+	      return this;
+	    },
+	
+	    /**
+	     * Unmute all sounds.
+	     * @return {Howler}
+	     */
+	    unmute: function() {
+	      this._setMuted(false);
+	
+	      return this;
+	    },
+	
+	    /**
+	     * Handle muting and unmuting globally.
+	     * @param  {Boolean} muted Is muted or not.
+	     */
+	    _setMuted: function(muted) {
+	      var self = this;
+	
+	      self._muted = muted;
+	
+	      if (usingWebAudio) {
+	        masterGain.gain.value = muted ? 0 : self._volume;
+	      }
+	
+	      for (var key in self._howls) {
+	        if (self._howls.hasOwnProperty(key) && self._howls[key]._webAudio === false) {
+	          // loop through the audio nodes
+	          for (var i=0; i<self._howls[key]._audioNode.length; i++) {
+	            self._howls[key]._audioNode[i].muted = muted;
+	          }
+	        }
+	      }
+	    },
+	
+	    /**
+	     * Check for codec support.
+	     * @param  {String} ext Audio file extension.
+	     * @return {Boolean}
+	     */
+	    codecs: function(ext) {
+	      return this._codecs[ext];
+	    },
+	
+	    /**
+	     * iOS will only allow audio to be played after a user interaction.
+	     * Attempt to automatically unlock audio on the first user interaction.
+	     * Concept from: http://paulbakaus.com/tutorials/html5/web-audio-on-ios/
+	     * @return {Howler}
+	     */
+	    _enableiOSAudio: function() {
+	      var self = this;
+	
+	      // only run this on iOS if audio isn't already eanbled
+	      if (ctx && (self._iOSEnabled || !/iPhone|iPad|iPod/i.test(navigator.userAgent))) {
+	        return;
+	      }
+	
+	      self._iOSEnabled = false;
+	
+	      // call this method on touch start to create and play a buffer,
+	      // then check if the audio actually played to determine if
+	      // audio has now been unlocked on iOS
+	      var unlock = function() {
+	        // create an empty buffer
+	        var buffer = ctx.createBuffer(1, 1, 22050);
+	        var source = ctx.createBufferSource();
+	        source.buffer = buffer;
+	        source.connect(ctx.destination);
+	
+	        // play the empty buffer
+	        if (typeof source.start === 'undefined') {
+	          source.noteOn(0);
+	        } else {
+	          source.start(0);
+	        }
+	
+	        // setup a timeout to check that we are unlocked on the next event loop
+	        setTimeout(function() {
+	          if ((source.playbackState === source.PLAYING_STATE || source.playbackState === source.FINISHED_STATE)) {
+	            // update the unlocked state and prevent this check from happening again
+	            self._iOSEnabled = true;
+	            self.iOSAutoEnable = false;
+	
+	            // remove the touch start listener
+	            window.removeEventListener('touchend', unlock, false);
+	          }
+	        }, 0);
+	      };
+	
+	      // setup a touch start listener to attempt an unlock in
+	      window.addEventListener('touchend', unlock, false);
+	
+	      return self;
+	    }
+	  };
+	
+	  // check for browser codec support
+	  var audioTest = null;
+	  var codecs = {};
+	  if (!noAudio) {
+	    audioTest = new Audio();
+	    codecs = {
+	      mp3: !!audioTest.canPlayType('audio/mpeg;').replace(/^no$/, ''),
+	      opus: !!audioTest.canPlayType('audio/ogg; codecs="opus"').replace(/^no$/, ''),
+	      ogg: !!audioTest.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/, ''),
+	      wav: !!audioTest.canPlayType('audio/wav; codecs="1"').replace(/^no$/, ''),
+	      aac: !!audioTest.canPlayType('audio/aac;').replace(/^no$/, ''),
+	      m4a: !!(audioTest.canPlayType('audio/x-m4a;') || audioTest.canPlayType('audio/m4a;') || audioTest.canPlayType('audio/aac;')).replace(/^no$/, ''),
+	      mp4: !!(audioTest.canPlayType('audio/x-mp4;') || audioTest.canPlayType('audio/mp4;') || audioTest.canPlayType('audio/aac;')).replace(/^no$/, ''),
+	      weba: !!audioTest.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/, '')
+	    };
+	  }
+	
+	  // allow access to the global audio controls
+	  var Howler = new HowlerGlobal(codecs);
+	
+	  // setup the audio object
+	  var Howl = function(o) {
+	    var self = this;
+	
+	    // setup the defaults
+	    self._autoplay = o.autoplay || false;
+	    self._buffer = o.buffer || false;
+	    self._duration = o.duration || 0;
+	    self._format = o.format || null;
+	    self._loop = o.loop || false;
+	    self._loaded = false;
+	    self._sprite = o.sprite || {};
+	    self._src = o.src || '';
+	    self._pos3d = o.pos3d || [0, 0, -0.5];
+	    self._volume = o.volume !== undefined ? o.volume : 1;
+	    self._urls = o.urls || [];
+	    self._rate = o.rate || 1;
+	
+	    // allow forcing of a specific panningModel ('equalpower' or 'HRTF'),
+	    // if none is specified, defaults to 'equalpower' and switches to 'HRTF'
+	    // if 3d sound is used
+	    self._model = o.model || null;
+	
+	    // setup event functions
+	    self._onload = [o.onload || function() {}];
+	    self._onloaderror = [o.onloaderror || function() {}];
+	    self._onend = [o.onend || function() {}];
+	    self._onpause = [o.onpause || function() {}];
+	    self._onplay = [o.onplay || function() {}];
+	
+	    self._onendTimer = [];
+	
+	    // Web Audio or HTML5 Audio?
+	    self._webAudio = usingWebAudio && !self._buffer;
+	
+	    // check if we need to fall back to HTML5 Audio
+	    self._audioNode = [];
+	    if (self._webAudio) {
+	      self._setupAudioNode();
+	    }
+	
+	    // automatically try to enable audio on iOS
+	    if (typeof ctx !== 'undefined' && ctx && Howler.iOSAutoEnable) {
+	      Howler._enableiOSAudio();
+	    }
+	
+	    // add this to an array of Howl's to allow global control
+	    Howler._howls.push(self);
+	
+	    // load the track
+	    self.load();
+	  };
+	
+	  // setup all of the methods
+	  Howl.prototype = {
+	    /**
+	     * Load an audio file.
+	     * @return {Howl}
+	     */
+	    load: function() {
+	      var self = this,
+	        url = null;
+	
+	      // if no audio is available, quit immediately
+	      if (noAudio) {
+	        self.on('loaderror', new Error('No audio support.'));
+	        return;
+	      }
+	
+	      // loop through source URLs and pick the first one that is compatible
+	      for (var i=0; i<self._urls.length; i++) {
+	        var ext, urlItem;
+	
+	        if (self._format) {
+	          // use specified audio format if available
+	          ext = self._format;
+	        } else {
+	          // figure out the filetype (whether an extension or base64 data)
+	          urlItem = self._urls[i];
+	          ext = /^data:audio\/([^;,]+);/i.exec(urlItem);
+	          if (!ext) {
+	            ext = /\.([^.]+)$/.exec(urlItem.split('?', 1)[0]);
+	          }
+	
+	          if (ext) {
+	            ext = ext[1].toLowerCase();
+	          } else {
+	            self.on('loaderror', new Error('Could not extract format from passed URLs, please add format parameter.'));
+	            return;
+	          }
+	        }
+	
+	        if (codecs[ext]) {
+	          url = self._urls[i];
+	          break;
+	        }
+	      }
+	
+	      if (!url) {
+	        self.on('loaderror', new Error('No codec support for selected audio sources.'));
+	        return;
+	      }
+	
+	      self._src = url;
+	
+	      if (self._webAudio) {
+	        loadBuffer(self, url);
+	      } else {
+	        var newNode = new Audio();
+	
+	        // listen for errors with HTML5 audio (http://dev.w3.org/html5/spec-author-view/spec.html#mediaerror)
+	        newNode.addEventListener('error', function () {
+	          if (newNode.error && newNode.error.code === 4) {
+	            HowlerGlobal.noAudio = true;
+	          }
+	
+	          self.on('loaderror', {type: newNode.error ? newNode.error.code : 0});
+	        }, false);
+	
+	        self._audioNode.push(newNode);
+	
+	        // setup the new audio node
+	        newNode.src = url;
+	        newNode._pos = 0;
+	        newNode.preload = 'auto';
+	        newNode.volume = (Howler._muted) ? 0 : self._volume * Howler.volume();
+	
+	        // setup the event listener to start playing the sound
+	        // as soon as it has buffered enough
+	        var listener = function() {
+	          // round up the duration when using HTML5 Audio to account for the lower precision
+	          self._duration = Math.ceil(newNode.duration * 10) / 10;
+	
+	          // setup a sprite if none is defined
+	          if (Object.getOwnPropertyNames(self._sprite).length === 0) {
+	            self._sprite = {_default: [0, self._duration * 1000]};
+	          }
+	
+	          if (!self._loaded) {
+	            self._loaded = true;
+	            self.on('load');
+	          }
+	
+	          if (self._autoplay) {
+	            self.play();
+	          }
+	
+	          // clear the event listener
+	          newNode.removeEventListener('canplaythrough', listener, false);
+	        };
+	        newNode.addEventListener('canplaythrough', listener, false);
+	        newNode.load();
+	      }
+	
+	      return self;
+	    },
+	
+	    /**
+	     * Get/set the URLs to be pulled from to play in this source.
+	     * @param  {Array} urls  Arry of URLs to load from
+	     * @return {Howl}        Returns self or the current URLs
+	     */
+	    urls: function(urls) {
+	      var self = this;
+	
+	      if (urls) {
+	        self.stop();
+	        self._urls = (typeof urls === 'string') ? [urls] : urls;
+	        self._loaded = false;
+	        self.load();
+	
+	        return self;
+	      } else {
+	        return self._urls;
+	      }
+	    },
+	
+	    /**
+	     * Play a sound from the current time (0 by default).
+	     * @param  {String}   sprite   (optional) Plays from the specified position in the sound sprite definition.
+	     * @param  {Function} callback (optional) Returns the unique playback id for this sound instance.
+	     * @return {Howl}
+	     */
+	    play: function(sprite, callback) {
+	      var self = this;
+	
+	      // if no sprite was passed but a callback was, update the variables
+	      if (typeof sprite === 'function') {
+	        callback = sprite;
+	      }
+	
+	      // use the default sprite if none is passed
+	      if (!sprite || typeof sprite === 'function') {
+	        sprite = '_default';
+	      }
+	
+	      // if the sound hasn't been loaded, add it to the event queue
+	      if (!self._loaded) {
+	        self.on('load', function() {
+	          self.play(sprite, callback);
+	        });
+	
+	        return self;
+	      }
+	
+	      // if the sprite doesn't exist, play nothing
+	      if (!self._sprite[sprite]) {
+	        if (typeof callback === 'function') callback();
+	        return self;
+	      }
+	
+	      // get the node to playback
+	      self._inactiveNode(function(node) {
+	        // persist the sprite being played
+	        node._sprite = sprite;
+	
+	        // determine where to start playing from
+	        var pos = (node._pos > 0) ? node._pos : self._sprite[sprite][0] / 1000;
+	
+	        // determine how long to play for
+	        var duration = 0;
+	        if (self._webAudio) {
+	          duration = self._sprite[sprite][1] / 1000 - node._pos;
+	          if (node._pos > 0) {
+	            pos = self._sprite[sprite][0] / 1000 + pos;
+	          }
+	        } else {
+	          duration = self._sprite[sprite][1] / 1000 - (pos - self._sprite[sprite][0] / 1000);
+	        }
+	
+	        // determine if this sound should be looped
+	        var loop = !!(self._loop || self._sprite[sprite][2]);
+	
+	        // set timer to fire the 'onend' event
+	        var soundId = (typeof callback === 'string') ? callback : Math.round(Date.now() * Math.random()) + '',
+	          timerId;
+	        (function() {
+	          var data = {
+	            id: soundId,
+	            sprite: sprite,
+	            loop: loop
+	          };
+	          timerId = setTimeout(function() {
+	            // if looping, restart the track
+	            if (!self._webAudio && loop) {
+	              self.stop(data.id).play(sprite, data.id);
+	            }
+	
+	            // set web audio node to paused at end
+	            if (self._webAudio && !loop) {
+	              self._nodeById(data.id).paused = true;
+	              self._nodeById(data.id)._pos = 0;
+	
+	              // clear the end timer
+	              self._clearEndTimer(data.id);
+	            }
+	
+	            // end the track if it is HTML audio and a sprite
+	            if (!self._webAudio && !loop) {
+	              self.stop(data.id);
+	            }
+	
+	            // fire ended event
+	            self.on('end', soundId);
+	          }, (duration / self._rate) * 1000);
+	
+	          // store the reference to the timer
+	          self._onendTimer.push({timer: timerId, id: data.id});
+	        })();
+	
+	        if (self._webAudio) {
+	          var loopStart = self._sprite[sprite][0] / 1000,
+	            loopEnd = self._sprite[sprite][1] / 1000;
+	
+	          // set the play id to this node and load into context
+	          node.id = soundId;
+	          node.paused = false;
+	          refreshBuffer(self, [loop, loopStart, loopEnd], soundId);
+	          self._playStart = ctx.currentTime;
+	          node.gain.value = self._volume;
+	
+	          if (typeof node.bufferSource.start === 'undefined') {
+	            loop ? node.bufferSource.noteGrainOn(0, pos, 86400) : node.bufferSource.noteGrainOn(0, pos, duration);
+	          } else {
+	            loop ? node.bufferSource.start(0, pos, 86400) : node.bufferSource.start(0, pos, duration);
+	          }
+	        } else {
+	          if (node.readyState === 4 || !node.readyState && navigator.isCocoonJS) {
+	            node.readyState = 4;
+	            node.id = soundId;
+	            node.currentTime = pos;
+	            node.muted = Howler._muted || node.muted;
+	            node.volume = self._volume * Howler.volume();
+	            setTimeout(function() { node.play(); }, 0);
+	          } else {
+	            self._clearEndTimer(soundId);
+	
+	            (function(){
+	              var sound = self,
+	                playSprite = sprite,
+	                fn = callback,
+	                newNode = node;
+	              var listener = function() {
+	                sound.play(playSprite, fn);
+	
+	                // clear the event listener
+	                newNode.removeEventListener('canplaythrough', listener, false);
+	              };
+	              newNode.addEventListener('canplaythrough', listener, false);
+	            })();
+	
+	            return self;
+	          }
+	        }
+	
+	        // fire the play event and send the soundId back in the callback
+	        self.on('play');
+	        if (typeof callback === 'function') callback(soundId);
+	
+	        return self;
+	      });
+	
+	      return self;
+	    },
+	
+	    /**
+	     * Pause playback and save the current position.
+	     * @param {String} id (optional) The play instance ID.
+	     * @return {Howl}
+	     */
+	    pause: function(id) {
+	      var self = this;
+	
+	      // if the sound hasn't been loaded, add it to the event queue
+	      if (!self._loaded) {
+	        self.on('play', function() {
+	          self.pause(id);
+	        });
+	
+	        return self;
+	      }
+	
+	      // clear 'onend' timer
+	      self._clearEndTimer(id);
+	
+	      var activeNode = (id) ? self._nodeById(id) : self._activeNode();
+	      if (activeNode) {
+	        activeNode._pos = self.pos(null, id);
+	
+	        if (self._webAudio) {
+	          // make sure the sound has been created
+	          if (!activeNode.bufferSource || activeNode.paused) {
+	            return self;
+	          }
+	
+	          activeNode.paused = true;
+	          if (typeof activeNode.bufferSource.stop === 'undefined') {
+	            activeNode.bufferSource.noteOff(0);
+	          } else {
+	            activeNode.bufferSource.stop(0);
+	          }
+	        } else {
+	          activeNode.pause();
+	        }
+	      }
+	
+	      self.on('pause');
+	
+	      return self;
+	    },
+	
+	    /**
+	     * Stop playback and reset to start.
+	     * @param  {String} id  (optional) The play instance ID.
+	     * @return {Howl}
+	     */
+	    stop: function(id) {
+	      var self = this;
+	
+	      // if the sound hasn't been loaded, add it to the event queue
+	      if (!self._loaded) {
+	        self.on('play', function() {
+	          self.stop(id);
+	        });
+	
+	        return self;
+	      }
+	
+	      // clear 'onend' timer
+	      self._clearEndTimer(id);
+	
+	      var activeNode = (id) ? self._nodeById(id) : self._activeNode();
+	      if (activeNode) {
+	        activeNode._pos = 0;
+	
+	        if (self._webAudio) {
+	          // make sure the sound has been created
+	          if (!activeNode.bufferSource || activeNode.paused) {
+	            return self;
+	          }
+	
+	          activeNode.paused = true;
+	
+	          if (typeof activeNode.bufferSource.stop === 'undefined') {
+	            activeNode.bufferSource.noteOff(0);
+	          } else {
+	            activeNode.bufferSource.stop(0);
+	          }
+	        } else if (!isNaN(activeNode.duration)) {
+	          activeNode.pause();
+	          activeNode.currentTime = 0;
+	        }
+	      }
+	
+	      return self;
+	    },
+	
+	    /**
+	     * Mute this sound.
+	     * @param  {String} id (optional) The play instance ID.
+	     * @return {Howl}
+	     */
+	    mute: function(id) {
+	      var self = this;
+	
+	      // if the sound hasn't been loaded, add it to the event queue
+	      if (!self._loaded) {
+	        self.on('play', function() {
+	          self.mute(id);
+	        });
+	
+	        return self;
+	      }
+	
+	      var activeNode = (id) ? self._nodeById(id) : self._activeNode();
+	      if (activeNode) {
+	        if (self._webAudio) {
+	          activeNode.gain.value = 0;
+	        } else {
+	          activeNode.muted = true;
+	        }
+	      }
+	
+	      return self;
+	    },
+	
+	    /**
+	     * Unmute this sound.
+	     * @param  {String} id (optional) The play instance ID.
+	     * @return {Howl}
+	     */
+	    unmute: function(id) {
+	      var self = this;
+	
+	      // if the sound hasn't been loaded, add it to the event queue
+	      if (!self._loaded) {
+	        self.on('play', function() {
+	          self.unmute(id);
+	        });
+	
+	        return self;
+	      }
+	
+	      var activeNode = (id) ? self._nodeById(id) : self._activeNode();
+	      if (activeNode) {
+	        if (self._webAudio) {
+	          activeNode.gain.value = self._volume;
+	        } else {
+	          activeNode.muted = false;
+	        }
+	      }
+	
+	      return self;
+	    },
+	
+	    /**
+	     * Get/set volume of this sound.
+	     * @param  {Float}  vol Volume from 0.0 to 1.0.
+	     * @param  {String} id  (optional) The play instance ID.
+	     * @return {Howl/Float}     Returns self or current volume.
+	     */
+	    volume: function(vol, id) {
+	      var self = this;
+	
+	      // make sure volume is a number
+	      vol = parseFloat(vol);
+	
+	      if (vol >= 0 && vol <= 1) {
+	        self._volume = vol;
+	
+	        // if the sound hasn't been loaded, add it to the event queue
+	        if (!self._loaded) {
+	          self.on('play', function() {
+	            self.volume(vol, id);
+	          });
+	
+	          return self;
+	        }
+	
+	        var activeNode = (id) ? self._nodeById(id) : self._activeNode();
+	        if (activeNode) {
+	          if (self._webAudio) {
+	            activeNode.gain.value = vol;
+	          } else {
+	            activeNode.volume = vol * Howler.volume();
+	          }
+	        }
+	
+	        return self;
+	      } else {
+	        return self._volume;
+	      }
+	    },
+	
+	    /**
+	     * Get/set whether to loop the sound.
+	     * @param  {Boolean} loop To loop or not to loop, that is the question.
+	     * @return {Howl/Boolean}      Returns self or current looping value.
+	     */
+	    loop: function(loop) {
+	      var self = this;
+	
+	      if (typeof loop === 'boolean') {
+	        self._loop = loop;
+	
+	        return self;
+	      } else {
+	        return self._loop;
+	      }
+	    },
+	
+	    /**
+	     * Get/set sound sprite definition.
+	     * @param  {Object} sprite Example: {spriteName: [offset, duration, loop]}
+	     *                @param {Integer} offset   Where to begin playback in milliseconds
+	     *                @param {Integer} duration How long to play in milliseconds
+	     *                @param {Boolean} loop     (optional) Set true to loop this sprite
+	     * @return {Howl}        Returns current sprite sheet or self.
+	     */
+	    sprite: function(sprite) {
+	      var self = this;
+	
+	      if (typeof sprite === 'object') {
+	        self._sprite = sprite;
+	
+	        return self;
+	      } else {
+	        return self._sprite;
+	      }
+	    },
+	
+	    /**
+	     * Get/set the position of playback.
+	     * @param  {Float}  pos The position to move current playback to.
+	     * @param  {String} id  (optional) The play instance ID.
+	     * @return {Howl/Float}      Returns self or current playback position.
+	     */
+	    pos: function(pos, id) {
+	      var self = this;
+	
+	      // if the sound hasn't been loaded, add it to the event queue
+	      if (!self._loaded) {
+	        self.on('load', function() {
+	          self.pos(pos);
+	        });
+	
+	        return typeof pos === 'number' ? self : self._pos || 0;
+	      }
+	
+	      // make sure we are dealing with a number for pos
+	      pos = parseFloat(pos);
+	
+	      var activeNode = (id) ? self._nodeById(id) : self._activeNode();
+	      if (activeNode) {
+	        if (pos >= 0) {
+	          self.pause(id);
+	          activeNode._pos = pos;
+	          self.play(activeNode._sprite, id);
+	
+	          return self;
+	        } else {
+	          return self._webAudio ? activeNode._pos + (ctx.currentTime - self._playStart) : activeNode.currentTime;
+	        }
+	      } else if (pos >= 0) {
+	        return self;
+	      } else {
+	        // find the first inactive node to return the pos for
+	        for (var i=0; i<self._audioNode.length; i++) {
+	          if (self._audioNode[i].paused && self._audioNode[i].readyState === 4) {
+	            return (self._webAudio) ? self._audioNode[i]._pos : self._audioNode[i].currentTime;
+	          }
+	        }
+	      }
+	    },
+	
+	    /**
+	     * Get/set the 3D position of the audio source.
+	     * The most common usage is to set the 'x' position
+	     * to affect the left/right ear panning. Setting any value higher than
+	     * 1.0 will begin to decrease the volume of the sound as it moves further away.
+	     * NOTE: This only works with Web Audio API, HTML5 Audio playback
+	     * will not be affected.
+	     * @param  {Float}  x  The x-position of the playback from -1000.0 to 1000.0
+	     * @param  {Float}  y  The y-position of the playback from -1000.0 to 1000.0
+	     * @param  {Float}  z  The z-position of the playback from -1000.0 to 1000.0
+	     * @param  {String} id (optional) The play instance ID.
+	     * @return {Howl/Array}   Returns self or the current 3D position: [x, y, z]
+	     */
+	    pos3d: function(x, y, z, id) {
+	      var self = this;
+	
+	      // set a default for the optional 'y' & 'z'
+	      y = (typeof y === 'undefined' || !y) ? 0 : y;
+	      z = (typeof z === 'undefined' || !z) ? -0.5 : z;
+	
+	      // if the sound hasn't been loaded, add it to the event queue
+	      if (!self._loaded) {
+	        self.on('play', function() {
+	          self.pos3d(x, y, z, id);
+	        });
+	
+	        return self;
+	      }
+	
+	      if (x >= 0 || x < 0) {
+	        if (self._webAudio) {
+	          var activeNode = (id) ? self._nodeById(id) : self._activeNode();
+	          if (activeNode) {
+	            self._pos3d = [x, y, z];
+	            activeNode.panner.setPosition(x, y, z);
+	            activeNode.panner.panningModel = self._model || 'HRTF';
+	          }
+	        }
+	      } else {
+	        return self._pos3d;
+	      }
+	
+	      return self;
+	    },
+	
+	    /**
+	     * Fade a currently playing sound between two volumes.
+	     * @param  {Number}   from     The volume to fade from (0.0 to 1.0).
+	     * @param  {Number}   to       The volume to fade to (0.0 to 1.0).
+	     * @param  {Number}   len      Time in milliseconds to fade.
+	     * @param  {Function} callback (optional) Fired when the fade is complete.
+	     * @param  {String}   id       (optional) The play instance ID.
+	     * @return {Howl}
+	     */
+	    fade: function(from, to, len, callback, id) {
+	      var self = this,
+	        diff = Math.abs(from - to),
+	        dir = from > to ? 'down' : 'up',
+	        steps = diff / 0.01,
+	        stepTime = len / steps;
+	
+	      // if the sound hasn't been loaded, add it to the event queue
+	      if (!self._loaded) {
+	        self.on('load', function() {
+	          self.fade(from, to, len, callback, id);
+	        });
+	
+	        return self;
+	      }
+	
+	      // set the volume to the start position
+	      self.volume(from, id);
+	
+	      for (var i=1; i<=steps; i++) {
+	        (function() {
+	          var change = self._volume + (dir === 'up' ? 0.01 : -0.01) * i,
+	            vol = Math.round(1000 * change) / 1000,
+	            toVol = to;
+	
+	          setTimeout(function() {
+	            self.volume(vol, id);
+	
+	            if (vol === toVol) {
+	              if (callback) callback();
+	            }
+	          }, stepTime * i);
+	        })();
+	      }
+	    },
+	
+	    /**
+	     * [DEPRECATED] Fade in the current sound.
+	     * @param  {Float}    to      Volume to fade to (0.0 to 1.0).
+	     * @param  {Number}   len     Time in milliseconds to fade.
+	     * @param  {Function} callback
+	     * @return {Howl}
+	     */
+	    fadeIn: function(to, len, callback) {
+	      return this.volume(0).play().fade(0, to, len, callback);
+	    },
+	
+	    /**
+	     * [DEPRECATED] Fade out the current sound and pause when finished.
+	     * @param  {Float}    to       Volume to fade to (0.0 to 1.0).
+	     * @param  {Number}   len      Time in milliseconds to fade.
+	     * @param  {Function} callback
+	     * @param  {String}   id       (optional) The play instance ID.
+	     * @return {Howl}
+	     */
+	    fadeOut: function(to, len, callback, id) {
+	      var self = this;
+	
+	      return self.fade(self._volume, to, len, function() {
+	        if (callback) callback();
+	        self.pause(id);
+	
+	        // fire ended event
+	        self.on('end');
+	      }, id);
+	    },
+	
+	    /**
+	     * Get an audio node by ID.
+	     * @return {Howl} Audio node.
+	     */
+	    _nodeById: function(id) {
+	      var self = this,
+	        node = self._audioNode[0];
+	
+	      // find the node with this ID
+	      for (var i=0; i<self._audioNode.length; i++) {
+	        if (self._audioNode[i].id === id) {
+	          node = self._audioNode[i];
+	          break;
+	        }
+	      }
+	
+	      return node;
+	    },
+	
+	    /**
+	     * Get the first active audio node.
+	     * @return {Howl} Audio node.
+	     */
+	    _activeNode: function() {
+	      var self = this,
+	        node = null;
+	
+	      // find the first playing node
+	      for (var i=0; i<self._audioNode.length; i++) {
+	        if (!self._audioNode[i].paused) {
+	          node = self._audioNode[i];
+	          break;
+	        }
+	      }
+	
+	      // remove excess inactive nodes
+	      self._drainPool();
+	
+	      return node;
+	    },
+	
+	    /**
+	     * Get the first inactive audio node.
+	     * If there is none, create a new one and add it to the pool.
+	     * @param  {Function} callback Function to call when the audio node is ready.
+	     */
+	    _inactiveNode: function(callback) {
+	      var self = this,
+	        node = null;
+	
+	      // find first inactive node to recycle
+	      for (var i=0; i<self._audioNode.length; i++) {
+	        if (self._audioNode[i].paused && self._audioNode[i].readyState === 4) {
+	          // send the node back for use by the new play instance
+	          callback(self._audioNode[i]);
+	          node = true;
+	          break;
+	        }
+	      }
+	
+	      // remove excess inactive nodes
+	      self._drainPool();
+	
+	      if (node) {
+	        return;
+	      }
+	
+	      // create new node if there are no inactives
+	      var newNode;
+	      if (self._webAudio) {
+	        newNode = self._setupAudioNode();
+	        callback(newNode);
+	      } else {
+	        self.load();
+	        newNode = self._audioNode[self._audioNode.length - 1];
+	
+	        // listen for the correct load event and fire the callback
+	        var listenerEvent = navigator.isCocoonJS ? 'canplaythrough' : 'loadedmetadata';
+	        var listener = function() {
+	          newNode.removeEventListener(listenerEvent, listener, false);
+	          callback(newNode);
+	        };
+	        newNode.addEventListener(listenerEvent, listener, false);
+	      }
+	    },
+	
+	    /**
+	     * If there are more than 5 inactive audio nodes in the pool, clear out the rest.
+	     */
+	    _drainPool: function() {
+	      var self = this,
+	        inactive = 0,
+	        i;
+	
+	      // count the number of inactive nodes
+	      for (i=0; i<self._audioNode.length; i++) {
+	        if (self._audioNode[i].paused) {
+	          inactive++;
+	        }
+	      }
+	
+	      // remove excess inactive nodes
+	      for (i=self._audioNode.length-1; i>=0; i--) {
+	        if (inactive <= 5) {
+	          break;
+	        }
+	
+	        if (self._audioNode[i].paused) {
+	          // disconnect the audio source if using Web Audio
+	          if (self._webAudio) {
+	            self._audioNode[i].disconnect(0);
+	          }
+	
+	          inactive--;
+	          self._audioNode.splice(i, 1);
+	        }
+	      }
+	    },
+	
+	    /**
+	     * Clear 'onend' timeout before it ends.
+	     * @param  {String} soundId  The play instance ID.
+	     */
+	    _clearEndTimer: function(soundId) {
+	      var self = this,
+	        index = -1;
+	
+	      // loop through the timers to find the one associated with this sound
+	      for (var i=0; i<self._onendTimer.length; i++) {
+	        if (self._onendTimer[i].id === soundId) {
+	          index = i;
+	          break;
+	        }
+	      }
+	
+	      var timer = self._onendTimer[index];
+	      if (timer) {
+	        clearTimeout(timer.timer);
+	        self._onendTimer.splice(index, 1);
+	      }
+	    },
+	
+	    /**
+	     * Setup the gain node and panner for a Web Audio instance.
+	     * @return {Object} The new audio node.
+	     */
+	    _setupAudioNode: function() {
+	      var self = this,
+	        node = self._audioNode,
+	        index = self._audioNode.length;
+	
+	      // create gain node
+	      node[index] = (typeof ctx.createGain === 'undefined') ? ctx.createGainNode() : ctx.createGain();
+	      node[index].gain.value = self._volume;
+	      node[index].paused = true;
+	      node[index]._pos = 0;
+	      node[index].readyState = 4;
+	      node[index].connect(masterGain);
+	
+	      // create the panner
+	      node[index].panner = ctx.createPanner();
+	      node[index].panner.panningModel = self._model || 'equalpower';
+	      node[index].panner.setPosition(self._pos3d[0], self._pos3d[1], self._pos3d[2]);
+	      node[index].panner.connect(node[index]);
+	
+	      return node[index];
+	    },
+	
+	    /**
+	     * Call/set custom events.
+	     * @param  {String}   event Event type.
+	     * @param  {Function} fn    Function to call.
+	     * @return {Howl}
+	     */
+	    on: function(event, fn) {
+	      var self = this,
+	        events = self['_on' + event];
+	
+	      if (typeof fn === 'function') {
+	        events.push(fn);
+	      } else {
+	        for (var i=0; i<events.length; i++) {
+	          if (fn) {
+	            events[i].call(self, fn);
+	          } else {
+	            events[i].call(self);
+	          }
+	        }
+	      }
+	
+	      return self;
+	    },
+	
+	    /**
+	     * Remove a custom event.
+	     * @param  {String}   event Event type.
+	     * @param  {Function} fn    Listener to remove.
+	     * @return {Howl}
+	     */
+	    off: function(event, fn) {
+	      var self = this,
+	        events = self['_on' + event];
+	
+	      if (fn) {
+	        // loop through functions in the event for comparison
+	        for (var i=0; i<events.length; i++) {
+	          if (fn === events[i]) {
+	            events.splice(i, 1);
+	            break;
+	          }
+	        }
+	      } else {
+	        self['_on' + event] = [];
+	      }
+	
+	      return self;
+	    },
+	
+	    /**
+	     * Unload and destroy the current Howl object.
+	     * This will immediately stop all play instances attached to this sound.
+	     */
+	    unload: function() {
+	      var self = this;
+	
+	      // stop playing any active nodes
+	      var nodes = self._audioNode;
+	      for (var i=0; i<self._audioNode.length; i++) {
+	        // stop the sound if it is currently playing
+	        if (!nodes[i].paused) {
+	          self.stop(nodes[i].id);
+	          self.on('end', nodes[i].id);
+	        }
+	
+	        if (!self._webAudio) {
+	          // remove the source if using HTML5 Audio
+	          nodes[i].src = '';
+	        } else {
+	          // disconnect the output from the master gain
+	          nodes[i].disconnect(0);
+	        }
+	      }
+	
+	      // make sure all timeouts are cleared
+	      for (i=0; i<self._onendTimer.length; i++) {
+	        clearTimeout(self._onendTimer[i].timer);
+	      }
+	
+	      // remove the reference in the global Howler object
+	      var index = Howler._howls.indexOf(self);
+	      if (index !== null && index >= 0) {
+	        Howler._howls.splice(index, 1);
+	      }
+	
+	      // delete this sound from the cache
+	      delete cache[self._src];
+	      self = null;
+	    }
+	
+	  };
+	
+	  // only define these functions when using WebAudio
+	  if (usingWebAudio) {
+	
+	    /**
+	     * Buffer a sound from URL (or from cache) and decode to audio source (Web Audio API).
+	     * @param  {Object} obj The Howl object for the sound to load.
+	     * @param  {String} url The path to the sound file.
+	     */
+	    var loadBuffer = function(obj, url) {
+	      // check if the buffer has already been cached
+	      if (url in cache) {
+	        // set the duration from the cache
+	        obj._duration = cache[url].duration;
+	
+	        // load the sound into this object
+	        loadSound(obj);
+	        return;
+	      }
+	      
+	      if (/^data:[^;]+;base64,/.test(url)) {
+	        // Decode base64 data-URIs because some browsers cannot load data-URIs with XMLHttpRequest.
+	        var data = atob(url.split(',')[1]);
+	        var dataView = new Uint8Array(data.length);
+	        for (var i=0; i<data.length; ++i) {
+	          dataView[i] = data.charCodeAt(i);
+	        }
+	        
+	        decodeAudioData(dataView.buffer, obj, url);
+	      } else {
+	        // load the buffer from the URL
+	        var xhr = new XMLHttpRequest();
+	        xhr.open('GET', url, true);
+	        xhr.responseType = 'arraybuffer';
+	        xhr.onload = function() {
+	          decodeAudioData(xhr.response, obj, url);
+	        };
+	        xhr.onerror = function() {
+	          // if there is an error, switch the sound to HTML Audio
+	          if (obj._webAudio) {
+	            obj._buffer = true;
+	            obj._webAudio = false;
+	            obj._audioNode = [];
+	            delete obj._gainNode;
+	            delete cache[url];
+	            obj.load();
+	          }
+	        };
+	        try {
+	          xhr.send();
+	        } catch (e) {
+	          xhr.onerror();
+	        }
+	      }
+	    };
+	
+	    /**
+	     * Decode audio data from an array buffer.
+	     * @param  {ArrayBuffer} arraybuffer The audio data.
+	     * @param  {Object} obj The Howl object for the sound to load.
+	     * @param  {String} url The path to the sound file.
+	     */
+	    var decodeAudioData = function(arraybuffer, obj, url) {
+	      // decode the buffer into an audio source
+	      ctx.decodeAudioData(
+	        arraybuffer,
+	        function(buffer) {
+	          if (buffer) {
+	            cache[url] = buffer;
+	            loadSound(obj, buffer);
+	          }
+	        },
+	        function(err) {
+	          obj.on('loaderror', err);
+	        }
+	      );
+	    };
+	
+	    /**
+	     * Finishes loading the Web Audio API sound and fires the loaded event
+	     * @param  {Object}  obj    The Howl object for the sound to load.
+	     * @param  {Objecct} buffer The decoded buffer sound source.
+	     */
+	    var loadSound = function(obj, buffer) {
+	      // set the duration
+	      obj._duration = (buffer) ? buffer.duration : obj._duration;
+	
+	      // setup a sprite if none is defined
+	      if (Object.getOwnPropertyNames(obj._sprite).length === 0) {
+	        obj._sprite = {_default: [0, obj._duration * 1000]};
+	      }
+	
+	      // fire the loaded event
+	      if (!obj._loaded) {
+	        obj._loaded = true;
+	        obj.on('load');
+	      }
+	
+	      if (obj._autoplay) {
+	        obj.play();
+	      }
+	    };
+	
+	    /**
+	     * Load the sound back into the buffer source.
+	     * @param  {Object} obj   The sound to load.
+	     * @param  {Array}  loop  Loop boolean, pos, and duration.
+	     * @param  {String} id    (optional) The play instance ID.
+	     */
+	    var refreshBuffer = function(obj, loop, id) {
+	      // determine which node to connect to
+	      var node = obj._nodeById(id);
+	
+	      // setup the buffer source for playback
+	      node.bufferSource = ctx.createBufferSource();
+	      node.bufferSource.buffer = cache[obj._src];
+	      node.bufferSource.connect(node.panner);
+	      node.bufferSource.loop = loop[0];
+	      if (loop[0]) {
+	        node.bufferSource.loopStart = loop[1];
+	        node.bufferSource.loopEnd = loop[1] + loop[2];
+	      }
+	      node.bufferSource.playbackRate.value = obj._rate;
+	    };
+	
+	  }
+	
+	  /**
+	   * Add support for AMD (Asynchronous Module Definition) libraries such as require.js.
+	   */
+	  if (true) {
+	    !(__WEBPACK_AMD_DEFINE_RESULT__ = function() {
+	      return {
+	        Howler: Howler,
+	        Howl: Howl
+	      };
+	    }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	  }
+	
+	  /**
+	   * Add support for CommonJS libraries such as browserify.
+	   */
+	  if (true) {
+	    exports.Howler = Howler;
+	    exports.Howl = Howl;
+	  }
+	
+	  // define globally in case AMD is not available or available but not used
+	
+	  if (typeof window !== 'undefined') {
+	    window.Howler = Howler;
+	    window.Howl = Howl;
+	  }
+	
+	})();
+
+
+/***/ },
+/* 9 */
+/***/ function(module, exports, __webpack_require__) {
+
 	/// <reference path="./defs/three/three.d.ts" />
 	var THREE = __webpack_require__(3);
 	var Game = (function () {
@@ -65795,7 +67168,7 @@
 
 
 /***/ },
-/* 9 */
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/// <reference path="./defs/three/three.d.ts" />
@@ -65907,7 +67280,7 @@
 
 
 /***/ },
-/* 10 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __extends = (this && this.__extends) || function (d, b) {
@@ -65915,7 +67288,7 @@
 	    function __() { this.constructor = d; }
 	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 	};
-	var GameScreen = __webpack_require__(9);
+	var GameScreen = __webpack_require__(10);
 	var SettingsScreen = (function (_super) {
 	    __extends(SettingsScreen, _super);
 	    function SettingsScreen(options) {
@@ -65927,7 +67300,7 @@
 
 
 /***/ },
-/* 11 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __extends = (this && this.__extends) || function (d, b) {
@@ -65935,7 +67308,7 @@
 	    function __() { this.constructor = d; }
 	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 	};
-	var GameScreen = __webpack_require__(9);
+	var GameScreen = __webpack_require__(10);
 	var StartScreen = (function (_super) {
 	    __extends(StartScreen, _super);
 	    function StartScreen(options) {
@@ -65947,20 +67320,25 @@
 
 
 /***/ },
-/* 12 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
+	/// <reference path="./defs/hammer/hammer.d.ts" />
+	/// <reference path="./defs/tween.js/tween.js.d.ts" />
 	var __extends = (this && this.__extends) || function (d, b) {
 	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
 	    function __() { this.constructor = d; }
 	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 	};
+	var TWEEN = __webpack_require__(14);
 	var THREE = __webpack_require__(3);
-	var GameScreen = __webpack_require__(9);
+	var GameScreen = __webpack_require__(10);
 	var AssetManager = __webpack_require__(5);
+	var Utils = __webpack_require__(15);
+	var Hammer = __webpack_require__(2);
 	var LoadingScreen = (function (_super) {
 	    __extends(LoadingScreen, _super);
-	    function LoadingScreen(options) {
+	    function LoadingScreen(options, callback) {
 	        _super.call(this, options);
 	        this.pgBar = {
 	            mesh: null,
@@ -65970,887 +67348,188 @@
 	            width: 1,
 	            height: 25
 	        };
+	        this.background = {
+	            mesh: null,
+	            geo: null,
+	            mat: null,
+	        };
+	        // the state of this loading screen
+	        //  loading1 - loading assets for this loading screen
+	        //  loaded1 - assets for this loading screen are loaded
+	        //  loading2 - loading rest of game assets
+	        //  loaded2 - rest of game assets have been loaded
+	        this.screenState = "loading1";
+	        // this is the number of things that need to be loaded for this screen
+	        this.numThingsToLoad = 3;
+	        this.itemsLoaded = 0; // track the number of things that have been loaded
 	        this.minX = -100; // the width of the pogress bar will be twice the absolute value of this number
 	        this.numIncrements = 4;
+	        this.touchableMeshes = []; // an array of touchable meshes
 	        this.screenWidth = options.screenDim.width;
 	        this.screenHeight = options.screenDim.height;
+	        this.callback = callback;
+	        this.loadLocalAssets();
+	        this.setupEvents();
+	    }
+	    LoadingScreen.prototype.setupEvents = function () {
+	        this.hammer = new Hammer(document.body);
+	        var that = this;
+	        this.hammer.on("tap", function (event) {
+	            that.hammerEventReceived(event);
+	        });
+	        this.hammer.on("press", function (event) {
+	            console.log("press");
+	            that.hammerEventReceived(event);
+	        });
+	        this.hammer.on("pressup", function (event) {
+	            console.log("press up");
+	            that.hammerEventReceived(event);
+	        });
+	    };
+	    LoadingScreen.prototype.loadLocalAssets = function () {
 	        // load a font for use on this screen
 	        var loader = new THREE.FontLoader();
-	        var that = this;
-	        loader.load(AssetManager.AssetManager.assets.gentilis_regular.source, function (response) {
-	            AssetManager.AssetManager.assets.gentilis_regular.font = response;
-	            that.textGeo = new THREE.TextGeometry("Please Wait", {
-	                font: AssetManager.AssetManager.assets.gentilis_regular.font,
+	        var that = this; // for access in the anonymous callback functions below
+	        loader.load(AssetManager.AssetManager.assets.helvetiker_regular.source, function (response) {
+	            AssetManager.AssetManager.assets.helvetiker_regular.font = response;
+	            this.textGeo = new THREE.TextGeometry("Please Wait", {
+	                font: AssetManager.AssetManager.assets.helvetiker_regular.font,
 	                size: 25,
 	                height: 0,
 	                curveSegments: 48,
 	                bevelEnabled: false
 	            });
-	            THREE.GeometryUtils.center(that.textGeo);
-	            that.textMat = new THREE.MeshBasicMaterial({});
-	            that.textMesh = new THREE.Mesh(that.textGeo, that.textMat);
-	            that.textMesh.position.y = 20;
-	            that.scene.add(that.textMesh);
-	        }, that);
+	            THREE.GeometryUtils.center(this.textGeo);
+	            this.textMat = new THREE.MeshBasicMaterial({});
+	            this.textMesh = new THREE.Mesh(this.textGeo, this.textMat);
+	            this.textMesh.position.y = 20;
+	            this.scene.add(this.textMesh);
+	            this.itemsLoaded++;
+	            this.checkIfFinished(this.callback);
+	        }.bind(this));
+	        var texLoader = new THREE.TextureLoader();
+	        texLoader.load(AssetManager.AssetManager.assets.blueProgressBar.source, 
+	        // Function when resource is loaded
+	        function (texture) {
+	            AssetManager.AssetManager.assets.blueProgressBar.material = texture;
+	            this.pgTex = texture;
+	            this.itemsLoaded++;
+	            this.checkIfFinished(this.callback);
+	        }.bind(this));
+	        texLoader.load(AssetManager.AssetManager.assets.bkgLoading.source, 
+	        // Function when resource is loaded
+	        function (texture) {
+	            // do something with the texture
+	            AssetManager.AssetManager.assets.bkgLoading.material = texture;
+	            this.itemsLoaded++;
+	            this.checkIfFinished(this.callback);
+	            this.background.geo = new THREE.PlaneGeometry(this.screenWidth, this.screenHeight);
+	            this.background.mat = new THREE.MeshBasicMaterial({
+	                map: texture
+	            });
+	            this.background.mesh = new THREE.Mesh(this.background.geo, this.background.mat);
+	            this.background.mesh.position.z = -5;
+	            this.scene.add(this.background.mesh);
+	        }.bind(this));
 	        this.createLights();
 	        // center the camera
 	        this.positionCamera(0, 10, 18);
 	        // this.testProgressBar();
-	    }
+	    };
+	    // check to see if we are done loading everything that needs to be loaded for this screen
+	    LoadingScreen.prototype.checkIfFinished = function (callback) {
+	        if (this.itemsLoaded === this.numThingsToLoad) {
+	            this.screenState = "loaded1";
+	            callback();
+	        }
+	    };
 	    // numberItems is the number of increments for this progress bar
 	    LoadingScreen.prototype.initProgressBar = function (numberItems) {
 	        this.numIncrements = numberItems;
+	        this.screenState = "loading2";
 	    };
 	    // just in case we need an update loop for this screen
-	    LoadingScreen.prototype.update = function (dt) {
+	    LoadingScreen.prototype.update = function (dt, elapsed) {
+	        switch (this.screenState) {
+	            case "loading2":
+	                // check to see if a progress update was received
+	                if (LoadingScreen.prevProgressCounter !== LoadingScreen.curProgressCounter) {
+	                    LoadingScreen.prevProgressCounter = LoadingScreen.curProgressCounter;
+	                    this.updateProgressBar();
+	                }
+	                break;
+	            case "loaded2":
+	                this.screenState = "loadingComplete";
+	                console.log("loading complete");
+	                this.showGameStart();
+	                break;
+	        }
+	        TWEEN.update();
 	    };
 	    LoadingScreen.prototype.testProgressBar = function () {
 	        var increment = 0;
 	        for (var i = 0; i < this.numIncrements; i++) {
-	            setTimeout(this.updateProgressBar(i + 1), 2000);
+	            setTimeout(this.updateProgress(i + 1), 2000);
 	        }
 	    };
-	    LoadingScreen.prototype.updateProgressBar = function (increment) {
-	        LoadingScreen.incrementCounter += increment;
-	        console.log("increment " + increment + ", total " + LoadingScreen.incrementCounter);
+	    LoadingScreen.prototype.updateProgress = function (increment) {
+	        // LoadingScreen.prevLoadedCounter = LoadingScreen.loadedCounter;
+	        LoadingScreen.curProgressCounter += increment;
+	    };
+	    LoadingScreen.prototype.updateProgressBar = function () {
+	        // console.log("increment " + increment + ", total " + LoadingScreen.incrementCounter);
 	        var incrementWidth = Math.abs(this.minX * 2 / this.numIncrements);
 	        this.scene.remove(this.currentPgBar);
-	        var barWidth = incrementWidth * LoadingScreen.incrementCounter;
-	        var pgBarGeometry = new THREE.PlaneGeometry(barWidth, this.pgBar.height, 32);
-	        var pgBarMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+	        var barWidth = incrementWidth * LoadingScreen.curProgressCounter;
+	        var pgBarGeometry = new THREE.PlaneGeometry(barWidth, this.pgBar.height, 48);
+	        var pgBarMaterial = new THREE.MeshBasicMaterial({
+	            map: this.pgTex,
+	            side: THREE.DoubleSide
+	        });
 	        var pgBarMesh = new THREE.Mesh(pgBarGeometry, pgBarMaterial);
-	        var xPos = this.minX + (LoadingScreen.incrementCounter * incrementWidth / 2);
+	        var xPos = this.minX + (LoadingScreen.curProgressCounter * incrementWidth / 2);
 	        pgBarMesh.position.x = xPos;
 	        pgBarMesh.position.y = -40;
 	        this.currentPgBar = pgBarMesh;
 	        this.scene.add(this.currentPgBar);
-	        console.log(xPos + " : " + barWidth);
+	        // console.log(xPos + " : " + barWidth);
+	        if (LoadingScreen.curProgressCounter === this.numIncrements) {
+	            this.screenState = "loaded2";
+	        }
+	    };
+	    LoadingScreen.prototype.showGameStart = function () {
+	        this.scene.remove(this.currentPgBar);
+	        this.scene.remove(this.textMesh);
+	        this.startButton = Utils.Utils.createThreeButton("Start", 0x1111ff, AssetManager.AssetManager.assets.helvetiker_regular.font, "startButton");
+	        this.touchableMeshes = this.touchableMeshes.concat(this.startButton.children);
+	        this.scene.add(this.startButton);
 	    };
 	    LoadingScreen.prototype.createLights = function () {
 	        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
 	        directionalLight.position.set(0, 0, 20).normalize();
 	        this.scene.add(directionalLight);
 	    };
-	    LoadingScreen.incrementCounter = 0;
+	    LoadingScreen.prototype.hammerEventReceived = function (event) {
+	        // console.log("hammer");
+	        var touched = Utils.Utils.hammerEventReceived(event, this.camera, this.touchableMeshes);
+	        if (touched.length > 0) {
+	            switch (touched[0].object.userData.id) {
+	                case "startButton":
+	                    console.log("start");
+	                    Utils.Utils.pushButton(this.startButton);
+	                    break;
+	            }
+	        }
+	    };
+	    LoadingScreen.curProgressCounter = 0;
+	    LoadingScreen.prevProgressCounter = 0;
 	    return LoadingScreen;
 	})(GameScreen.Screen);
 	exports.LoadingScreen = LoadingScreen;
 
 
 /***/ },
-/* 13 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var THREE = __webpack_require__(3);
-	var GameScreen = __webpack_require__(9);
-	var StaticItem = __webpack_require__(14);
-	var Control = __webpack_require__(16);
-	var PlayScreen = (function (_super) {
-	    __extends(PlayScreen, _super);
-	    function PlayScreen(options) {
-	        _super.call(this, options);
-	        this.controls = { leftButton: null, downButton: null, rightButton: null };
-	        this.blockWidth = options.blockWidth;
-	        var groundY = -10 * this.blockWidth;
-	        // create the ground
-	        var ground = new StaticItem.StaticItem({
-	            width: this.blockWidth * 11,
-	            height: this.blockWidth,
-	            depth: this.blockWidth,
-	            x: 0,
-	            y: groundY,
-	            z: 0,
-	            color: new THREE.Color("rgb(0,140,0)"),
-	            name: "ground",
-	            screen: this
-	        });
-	        this.add(ground);
-	        // create controls
-	        var buttonYDisplacement = 2.5 * this.blockWidth;
-	        this.controls.leftButton = new Control.Control("circle", "leftButton", new THREE.Vector3(-5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
-	            size: this.blockWidth * 1.5,
-	            segments: 32,
-	            color: new THREE.Color("rgb(140,140,0)")
-	        });
-	        this.controls.downButton = new Control.Control("circle", "downButton", new THREE.Vector3(0, groundY - buttonYDisplacement, 0), {
-	            size: this.blockWidth * 1.5,
-	            segments: 32,
-	            color: new THREE.Color("rgb(140,140,0)")
-	        });
-	        this.controls.rightButton = new Control.Control("circle", "rightButton", new THREE.Vector3(5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
-	            size: this.blockWidth * 1.5,
-	            segments: 32,
-	            color: new THREE.Color("rgb(140,140,0)")
-	        });
-	        for (var control in this.controls) {
-	            if (this.controls.hasOwnProperty(control)) {
-	                this.add(this.controls[control]);
-	            }
-	        }
-	        this.createLights();
-	        // center the camera
-	        this.positionCamera(0, 10, 18);
-	    }
-	    PlayScreen.prototype.createLights = function () {
-	        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
-	        directionalLight.position.set(0, 0, 20).normalize();
-	        this.scene.add(directionalLight);
-	    };
-	    return PlayScreen;
-	})(GameScreen.Screen);
-	exports.PlayScreen = PlayScreen;
-
-
-/***/ },
 /* 14 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	/// <reference path="./defs/tween.js/tween.js.d.ts" />
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var THREE = __webpack_require__(3);
-	var ThreeItem = __webpack_require__(15);
-	var StaticItem = (function (_super) {
-	    __extends(StaticItem, _super);
-	    function StaticItem(options) {
-	        _super.call(this);
-	        this.dim = { width: null, height: null, depth: null };
-	        this.thisStaticItemID = StaticItem.StaticItemID;
-	        StaticItem.StaticItemID++;
-	        this.name = options && options.name;
-	        this.screen = options && options.screen;
-	        // create the mesh
-	        this.dim.width = options && options.width || 1;
-	        this.dim.height = options && options.height || 1;
-	        this.dim.depth = options && options.depth || 1;
-	        this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
-	        this.material = new THREE.MeshBasicMaterial({
-	            color: (options && options.color) ? options.color : new THREE.Color("rgb(255, 0, 0)")
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	        this.mesh.position.set(options && options.x || 0, options && options.y || 0, options && options.z || 0);
-	        // console.log("StaticItem " + this.thisThreeItemID + " created");
-	        // add this item to the array of physics items
-	        StaticItem.StaticItems[this.thisStaticItemID] = this;
-	        this.mesh.userData.StaticItemID = this.thisStaticItemID; // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the StaticItem
-	        // console.log ("StaticItem " + this.thisStaticItemID + " created");
-	    }
-	    StaticItem.prototype.update = function (dt, time) {
-	    };
-	    StaticItem.getStaticItemByID = function (id) {
-	        return StaticItem.StaticItems[id];
-	    };
-	    StaticItem.getStaticItemByName = function (name) {
-	        for (var item in StaticItem.StaticItems) {
-	            if (StaticItem.StaticItems.hasOwnProperty(item)) {
-	                if (StaticItem.StaticItems[item].name === name) {
-	                    return StaticItem.StaticItems[item];
-	                }
-	            }
-	        }
-	        return null;
-	    };
-	    StaticItem.StaticItemID = 0;
-	    StaticItem.StaticItems = {};
-	    return StaticItem;
-	})(ThreeItem.ThreeItem);
-	exports.StaticItem = StaticItem;
-
-
-/***/ },
-/* 15 */
-/***/ function(module, exports) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	var ThreeItem = (function () {
-	    function ThreeItem() {
-	        this.thisThreeItemID = ThreeItem.threeItemID;
-	        // store this physicsObject in an array for later
-	        ThreeItem.threeItems[this.thisThreeItemID] = this;
-	        // console.log("Object " + ThreeItem.threeItemID + " created.");
-	        ThreeItem.threeItemID++;
-	    }
-	    // get items by id
-	    ThreeItem.getItemByID = function (id) {
-	        return ThreeItem.threeItems[id];
-	    };
-	    // get items by name
-	    ThreeItem.getItemByName = function (name) {
-	        for (var item in ThreeItem.threeItems) {
-	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
-	                if (ThreeItem.threeItems[item].name === name) {
-	                    return ThreeItem.threeItems[item];
-	                }
-	            }
-	        }
-	    };
-	    // call the update function on every three item we've made
-	    ThreeItem.update = function (dt, time) {
-	        for (var item in ThreeItem.threeItems) {
-	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
-	                ThreeItem.threeItems[item].update(dt, time);
-	            }
-	        }
-	    };
-	    ThreeItem.prototype.killThreeItem = function (id) {
-	        delete ThreeItem.threeItems[id];
-	    };
-	    ThreeItem.threeItemID = 0;
-	    ThreeItem.threeItems = {};
-	    return ThreeItem;
-	})();
-	exports.ThreeItem = ThreeItem;
-
-
-/***/ },
-/* 16 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var THREE = __webpack_require__(3);
-	var ThreeItem = __webpack_require__(15);
-	var AssetManager = __webpack_require__(5);
-	var Control = (function (_super) {
-	    __extends(Control, _super);
-	    function Control(shape, name, pos, options) {
-	        _super.call(this);
-	        this.thisControlID = Control.controlID;
-	        this.name = name;
-	        switch (shape) {
-	            case "sphere":
-	                this.createSphereMesh(options);
-	                break;
-	            case "circle":
-	                this.createCircleMesh(options);
-	                break;
-	            case "square":
-	            case "box":
-	                this.createBoxMesh(options);
-	                break;
-	        }
-	        this.mesh.position.set(pos.x, pos.y, pos.z);
-	        this.mesh.userData.controlID = this.thisControlID;
-	        Control.controls[this.thisControlID] = this;
-	        Control.meshes.push(this.mesh);
-	        Control.controlID++;
-	    }
-	    Control.getControlByID = function (id) {
-	        return Control.controls[id];
-	    };
-	    Control.prototype.getControlByName = function (name) {
-	        for (var control in Control.controls) {
-	            if (Control.controls.hasOwnProperty(control)) {
-	                if (Control.controls[control].name === name) {
-	                    return Control.controls[control];
-	                }
-	            }
-	        }
-	    };
-	    Control.prototype.createSphereMesh = function (options) {
-	        this.geometry = new THREE.SphereGeometry(options && options.size || null);
-	        this.material = new THREE.MeshBasicMaterial({
-	            color: options && options.color || null
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	    };
-	    Control.prototype.createBoxMesh = function (options) {
-	        this.geometry = new THREE.BoxGeometry(options && options.size || null, options && options.size || null, options && options.size || null);
-	        this.material = new THREE.MeshBasicMaterial({
-	            color: options && options.color || null
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	    };
-	    Control.prototype.createCircleMesh = function (options) {
-	        this.geometry = new THREE.CircleGeometry(options && options.size || null, options && options.segments || null);
-	        this.material = new THREE.MeshBasicMaterial({
-	            // color: options && options.color || null,
-	            map: AssetManager.AssetManager.getAssetByTag(this.name).texture
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	    };
-	    Control.prototype.update = function () {
-	    };
-	    Control.controlID = 0;
-	    Control.controls = {};
-	    Control.meshes = []; // an array of meshes to use in touch events
-	    return Control;
-	})(ThreeItem.ThreeItem);
-	exports.Control = Control;
-
-
-/***/ },
-/* 17 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	/// <reference path="./fallingItem.ts" />
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var THREE = __webpack_require__(3);
-	var FallingItem = __webpack_require__(18);
-	var Candy = (function (_super) {
-	    __extends(Candy, _super);
-	    function Candy(options) {
-	        _super.call(this, options);
-	        this.candyTypes = [
-	            {
-	                name: "red",
-	                color: 0xff0000,
-	            },
-	            {
-	                name: "green",
-	                color: 0x00ff00,
-	            },
-	            {
-	                name: "blue",
-	                color: 0x0000ff,
-	            },
-	            {
-	                name: "yellow",
-	                color: 0xffff00,
-	            },
-	            {
-	                name: "purple",
-	                color: 0xff00ff,
-	            },
-	        ];
-	        this.thisCandyID = Candy.candyID;
-	        // select a candy type
-	        var min = 0; // left bound
-	        var max = this.candyTypes.length; // right bound
-	        var candy = this.candyTypes[Math.floor(Math.random() * (max - min) + min)];
-	        // create the mesh
-	        this.dim.width = options && options.width || 1;
-	        this.dim.height = options && options.height || 1;
-	        this.dim.depth = options && options.depth || 1;
-	        // this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
-	        this.geometry = new THREE.SphereGeometry(this.dim.width / 2, 16, 16);
-	        this.material = new THREE.MeshPhongMaterial({
-	            color: candy.color,
-	            specular: candy.color,
-	            shininess: 50,
-	            shading: THREE.SmoothShading
-	        });
-	        this.mesh = new THREE.Mesh(this.geometry, this.material);
-	        this.mesh.position.set(options && options.x || 0, options && options.y || 0, options && options.z || 0);
-	        // this.mesh.material.color.setHex(candy.color);
-	        this.mesh.userData.FallingItemID = this.thisFallingItemID; // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the FallingItem
-	        this.mesh.userData.candyID = this.thisCandyID;
-	        Candy.candyMeshes.push(this.mesh); // we'll need to shot rays against these later
-	        this.type = candy.name;
-	        this.name = candy.name;
-	        Candy.candies[this.thisCandyID] = this;
-	        Candy.candyID++;
-	    }
-	    Candy.prototype.update = function (dt, time) {
-	        _super.prototype.update.call(this, dt, time);
-	        switch (this.movementStatus) {
-	            case "stopped":
-	                this.normalizePosition(); // round the positions to the nearest 5 tenths
-	                var collisionMeshArrays = this.getCollisionMeshArrays();
-	                var adjacentCandies = this.getAdjacentcandies(collisionMeshArrays);
-	                this.checkForMatchingCandies(adjacentCandies);
-	                if (this.movementStatus !== "kill") {
-	                    this.movementStatus = "checked";
-	                }
-	                break;
-	        }
-	    };
-	    Candy.getCandyByID = function (id) {
-	        return Candy.candies[id];
-	    };
-	    /*********************************************************
-	     * check for matches around this blocks
-	     *  arrays is an object containing multiple arrays that contain
-	     *      the intersected objects around this block
-	     */
-	    Candy.prototype.checkForMatchingCandies = function (arrays) {
-	        var currentType = this.type;
-	        for (var array in arrays) {
-	            if ((arrays.hasOwnProperty(array)) && (arrays[array].length > 0)) {
-	                var matchCount = 0;
-	                for (var i = 0; i < arrays[array].length; i++) {
-	                    if (arrays[array][i].type === currentType) {
-	                        matchCount++;
-	                    }
-	                }
-	                if (matchCount === arrays[array].length) {
-	                    for (var i = 0; i < arrays[array].length; i++) {
-	                        arrays[array][i].movementStatus = "kill";
-	                    }
-	                }
-	            }
-	        }
-	    };
-	    /***********************************************
-	     * get the candy types for each array of candies
-	     */
-	    /********************************************
-	     * return arrays containing the meshes surrounding this block
-	     *  returns an object containing the meshes to the left, right, up, and down a distance of two objects away
-	     */
-	    Candy.prototype.getCollisionMeshArrays = function () {
-	        var originPoint = this.mesh.position.clone();
-	        var myRays = { left: null, right: null, up: null, down: null };
-	        myRays.left = new THREE.Raycaster(originPoint, new THREE.Vector3(-1, 0, 0), 0, this.dim.width * 2);
-	        myRays.right = new THREE.Raycaster(originPoint, new THREE.Vector3(1, 0, 0), 0, this.dim.width * 2);
-	        myRays.up = new THREE.Raycaster(originPoint, new THREE.Vector3(0, 1, 0), 0, this.dim.height * 2);
-	        myRays.down = new THREE.Raycaster(originPoint, new THREE.Vector3(0, -1, 0), 0, this.dim.height * 2);
-	        var collisionArrays = { left: null, right: null, up: null, down: null };
-	        collisionArrays.left = myRays.left.intersectObjects(Candy.candyMeshes);
-	        collisionArrays.right = myRays.right.intersectObjects(Candy.candyMeshes);
-	        collisionArrays.up = myRays.up.intersectObjects(Candy.candyMeshes);
-	        collisionArrays.down = myRays.down.intersectObjects(Candy.candyMeshes);
-	        this.removeDuplicates(collisionArrays);
-	        this.removeNoncontiguousItems(collisionArrays);
-	        if (collisionArrays.down[0]) {
-	            this.bumpUpBottomDistance(collisionArrays.down);
-	        }
-	        return collisionArrays;
-	    };
-	    /*******************************************************
-	     * convert the adjacent meshes to candies to the left, right, up, down for two meshes away and 1 block surrounding this block (with this block in the middle)
-	     */
-	    Candy.prototype.getAdjacentcandies = function (arrays) {
-	        var adjacentCandies = {
-	            left: [],
-	            right: [],
-	            up: [],
-	            down: [],
-	            midHorz: [],
-	            midVert: [],
-	            // the following arrays look at 4 block arrays in with this candy is second from the front or back
-	            left1: [],
-	            right1: [],
-	            up1: [],
-	            down1: [] // second from the bottom
-	        };
-	        if (arrays.left.length === 2) {
-	            adjacentCandies.left.push(Candy.getCandyByID(arrays.left[1].object.userData.candyID), Candy.getCandyByID(arrays.left[0].object.userData.candyID), this);
-	        }
-	        if (arrays.right.length === 2) {
-	            adjacentCandies.right.push(this, Candy.getCandyByID(arrays.right[0].object.userData.candyID), Candy.getCandyByID(arrays.right[1].object.userData.candyID));
-	        }
-	        if (arrays.up.length === 2) {
-	            adjacentCandies.up.push(Candy.getCandyByID(arrays.up[1].object.userData.candyID), Candy.getCandyByID(arrays.up[0].object.userData.candyID), this);
-	        }
-	        if (arrays.down.length === 2) {
-	            adjacentCandies.down.push(this, Candy.getCandyByID(arrays.down[0].object.userData.candyID), Candy.getCandyByID(arrays.down[1].object.userData.candyID));
-	        }
-	        if ((arrays.left.length >= 1) && (arrays.right.length >= 1)) {
-	            adjacentCandies.midHorz.push(Candy.getCandyByID(arrays.left[0].object.userData.candyID), this, Candy.getCandyByID(arrays.right[0].object.userData.candyID));
-	        }
-	        // second from the left
-	        if ((arrays.left.length >= 1) && (arrays.right.length >= 2)) {
-	            adjacentCandies.midHorz.push(Candy.getCandyByID(arrays.left[0].object.userData.candyID), this, Candy.getCandyByID(arrays.right[0].object.userData.candyID), Candy.getCandyByID(arrays.right[1].object.userData.candyID));
-	        }
-	        // second from the right
-	        if ((arrays.left.length >= 2) && (arrays.right.length >= 1)) {
-	            adjacentCandies.midHorz.push(Candy.getCandyByID(arrays.left[1].object.userData.candyID), Candy.getCandyByID(arrays.left[0].object.userData.candyID), this, Candy.getCandyByID(arrays.right[0].object.userData.candyID));
-	        }
-	        if ((arrays.up.length >= 1) && (arrays.down.length >= 1)) {
-	            adjacentCandies.midVert.push(Candy.getCandyByID(arrays.up[0].object.userData.candyID), this, Candy.getCandyByID(arrays.down[0].object.userData.candyID));
-	        }
-	        // second from the top
-	        if ((arrays.up.length >= 1) && (arrays.down.length >= 2)) {
-	            adjacentCandies.up1.push(Candy.getCandyByID(arrays.up[0].object.userData.candyID), this, Candy.getCandyByID(arrays.down[0].object.userData.candyID), Candy.getCandyByID(arrays.down[1].object.userData.candyID));
-	        }
-	        // second from the bottom
-	        if ((arrays.up.length >= 2) && (arrays.down.length >= 1)) {
-	            adjacentCandies.down.push(Candy.getCandyByID(arrays.up[1].object.userData.candyID), Candy.getCandyByID(arrays.up[0].object.userData.candyID), this, Candy.getCandyByID(arrays.down[0].object.userData.candyID));
-	        }
-	        return adjacentCandies;
-	    };
-	    /*************************************
-	     * normalize the position so that blocks are centered on the nearest 5 tenths location
-	     */
-	    Candy.prototype.normalizePosition = function () {
-	        this.mesh.position.x = Math.ceil(this.mesh.position.x * 50) / 50;
-	        this.mesh.position.y = Math.ceil(this.mesh.position.y * 50) / 50;
-	        this.mesh.position.z = Math.ceil(this.mesh.position.z * 50) / 50;
-	        // console.log ("Normalized Pos = " + this.mesh.position.x + ", " + this.mesh.position.y + ", " + this.mesh.position.z);
-	    };
-	    /*********************************
-	     * Ensure the distance between the center of this block and the one below it is exactly equal to one block
-	     */
-	    Candy.prototype.bumpUpBottomDistance = function (array) {
-	        if (array[0].distance < this.dim.height) {
-	            this.mesh.position.y = array[0].object.position.y + this.dim.height;
-	        }
-	    };
-	    /****************************************
-	     * Remove duplicate items from the detected items arrays
-	     */
-	    Candy.prototype.removeDuplicates = function (collisionArrays) {
-	        for (var ray in collisionArrays) {
-	            if (collisionArrays.hasOwnProperty(ray)) {
-	                for (var i = collisionArrays[ray].length - 1; i > 0; i--) {
-	                    if (collisionArrays[ray][i].object.userData.candyID === collisionArrays[ray][i - 1].object.userData.candyID) {
-	                        collisionArrays[ray].splice(i, 1);
-	                    }
-	                }
-	            }
-	        }
-	    };
-	    /****************************************
-	     * empty out arrays that dont detect an item immediately next to this block
-	     */
-	    Candy.prototype.removeNoncontiguousItems = function (collisionArrays) {
-	        for (var ray in collisionArrays) {
-	            if (collisionArrays.hasOwnProperty(ray)) {
-	                if ((collisionArrays[ray][0]) && (collisionArrays[ray][0].distance > this.dim.width)) {
-	                    collisionArrays[ray] = [];
-	                }
-	            }
-	        }
-	    };
-	    Candy.candyID = 0;
-	    Candy.candies = {};
-	    Candy.candyMeshes = [];
-	    return Candy;
-	})(FallingItem.FallingItem);
-	exports.Candy = Candy;
-
-
-/***/ },
-/* 18 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/// <reference path="./defs/three/three.d.ts" />
-	/// <reference path="./defs/tween.js/tween.js.d.ts" />
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var TWEEN = __webpack_require__(19);
-	var THREE = __webpack_require__(3);
-	var ThreeItem = __webpack_require__(15);
-	var FallingItem = (function (_super) {
-	    __extends(FallingItem, _super);
-	    function FallingItem(options) {
-	        _super.call(this);
-	        this.movementStatus = "falling";
-	        this.fallingSpeed = 100;
-	        this.fallFasterMultiplier = 5;
-	        this.dim = { width: null, height: null, depth: null };
-	        this.tweenInfo = {
-	            deathTime: .25,
-	            movementTime: .25,
-	            pos: { x: null, y: null },
-	            newPos: { x: null, y: null },
-	            // vertTween: null,
-	            // horzTween: null,
-	            // deathTween: null,
-	            vertTweenComplete: false,
-	            horzTweenComplete: false,
-	            rotTweenComplete: false,
-	            deathShrinkTweenComplete: false,
-	            deathRotateTweenComplete: false,
-	            tweenUp: null,
-	            tweenDown: null,
-	            vertCount: 0
-	        };
-	        this.thisFallingItemID = FallingItem.FallingItemID;
-	        FallingItem.FallingItemID++;
-	        this.name = options && options.name;
-	        this.screen = options && options.screen;
-	        this.movementStatus = options && options.movementStatus || "falling";
-	        // console.log("FallingItem " + this.thisThreeItemID + " created");
-	        // add this item to the array of physics items
-	        FallingItem.FallingItems[this.thisFallingItemID] = this;
-	        // console.log ("FallingItem " + this.thisFallingItemID + " created");
-	    }
-	    FallingItem.prototype.update = function (dt, time) {
-	        // falling item behavior is based on movement status
-	        switch (this.movementStatus) {
-	            case "falling":
-	                var ground = ThreeItem.ThreeItem.getItemByName("ground");
-	                if (FallingItem.fallFaster) {
-	                    this.mesh.position.y -= this.fallingSpeed * this.fallFasterMultiplier * dt;
-	                }
-	                else {
-	                    this.mesh.position.y -= this.fallingSpeed * dt;
-	                }
-	                // don't let the blocks be moved to a point below the ground
-	                if ((this.mesh.position.y < ground.mesh.position.y
-	                    + this.dim.height / 2
-	                    + ground.dim.height / 2) && (this.hasOwnProperty("thisCandyID"))) {
-	                    // move the box up and then tell it to stop moving
-	                    this.mesh.position.y = ground.mesh.position.y
-	                        + this.dim.height / 2
-	                        + ground.dim.height / 2;
-	                    this.movementStatus = "stopped";
-	                    // empty the move queue so that the next block starts out with a new slate
-	                    FallingItem.moveQueue = [];
-	                    // console.log("move queue emptied 1");
-	                    break;
-	                }
-	                // check to see if the block has collided with anything
-	                if (this.checkForCollision()) {
-	                    this.movementStatus = "stopped";
-	                    // empty the move queue so that the next block starts out with a new slate
-	                    FallingItem.moveQueue = [];
-	                    // console.log("move queue emptied 2");
-	                    break;
-	                }
-	                // check to see if we've been told to move left or right
-	                if (FallingItem.moveQueue.length > 0) {
-	                    switch (FallingItem.moveQueue[0]) {
-	                        case "left":
-	                            this.movementStatus = "moveLeft";
-	                            break;
-	                        case "right":
-	                            this.movementStatus = "moveRight";
-	                            break;
-	                    }
-	                    FallingItem.moveQueue.shift(); // remove this directive from the queue
-	                    break;
-	                }
-	                break;
-	            case "stopped":
-	            case "checked":
-	                if (!this.checkForCollision()) {
-	                    this.movementStatus = "falling";
-	                }
-	                break;
-	            case "moveLeft": // just received directive to move left
-	            case "moveRight":
-	                // y movement direction never changes
-	                this.tweenInfo.newPos.y = this.mesh.position.y + this.dim.height;
-	                switch (this.movementStatus) {
-	                    case "moveLeft":
-	                        this.movementStatus = "movingLeft";
-	                        this.tweenInfo.newPos.x = this.mesh.position.x - this.dim.width;
-	                        break;
-	                    case "moveRight":
-	                        this.tweenInfo.newPos.x = this.mesh.position.x + this.dim.width;
-	                        this.movementStatus = "movingRight";
-	                        break;
-	                }
-	                // don't go beyond the borders of the field
-	                if ((this.tweenInfo.newPos.x >= -5 * this.dim.width) && (this.tweenInfo.newPos.x <= 5 * this.dim.width)) {
-	                    // console.log("cur x: " + this.tweenInfo.pos.x + " | new x: " + this.tweenInfo.newPos.x);
-	                    // console.log("cur y: " + this.tweenInfo.pos.y + " | new y: " + this.tweenInfo.newPos.y);
-	                    // var that = this;
-	                    // run the sideways movment tween
-	                    this.runSideMoveTween();
-	                }
-	                else {
-	                    // just go back to falling if the user
-	                    // tries to go past the left or right boundaries
-	                    this.movementStatus = "falling";
-	                }
-	                break;
-	            case "movingLeft":
-	            case "movingRight":
-	                TWEEN.update();
-	                if (this.sideTweenComplete()) {
-	                    this.movementStatus = "falling";
-	                }
-	                break;
-	            case "rigid":
-	                break;
-	            case "unmovable":
-	                break;
-	            case "kill":
-	                this.runDeathTween();
-	                this.movementStatus = "dying";
-	                break;
-	            case "dying":
-	                TWEEN.update();
-	                if ((this.tweenInfo.deathRotateTweenComplete) &&
-	                    (this.tweenInfo.deathShrinkTweenComplete)) {
-	                    this.movementStatus = "dead";
-	                }
-	                break;
-	            case "dead":
-	                this.resetDeadItem();
-	                break;
-	        }
-	    };
-	    FallingItem.addMove = function (direction) {
-	        FallingItem.moveQueue.push(direction);
-	    };
-	    FallingItem.killRandom = function () {
-	        if (Math.random() > .01) {
-	            var max = FallingItem.FallingItemID;
-	            var min = 1;
-	            var randFallingItem = Math.floor(Math.random() * (max - min) + min);
-	            if ((FallingItem.FallingItems[randFallingItem]) &&
-	                ((FallingItem.FallingItems[randFallingItem].movementStatus === "stopped") ||
-	                    (FallingItem.FallingItems[randFallingItem].movementStatus === "checked"))) {
-	                FallingItem.FallingItems[randFallingItem].movementStatus = "kill";
-	            }
-	        }
-	    };
-	    FallingItem.getFallingItemByID = function (id) {
-	        return FallingItem.FallingItems[id];
-	    };
-	    FallingItem.getFallingItemByName = function (name) {
-	        for (var item in FallingItem.FallingItems) {
-	            if (FallingItem.FallingItems.hasOwnProperty(item)) {
-	                if (FallingItem.FallingItems[item].name === name) {
-	                    return FallingItem.FallingItems[item];
-	                }
-	            }
-	        }
-	        return null;
-	    };
-	    FallingItem.getNumFallingItemsMoving = function () {
-	        var numMoving = 0;
-	        for (var fallingItem in FallingItem.FallingItems) {
-	            if (FallingItem.FallingItems.hasOwnProperty(fallingItem)) {
-	                // all of these statuses means something is falling
-	                if (FallingItem.isMoving(FallingItem.FallingItems[fallingItem].movementStatus)) {
-	                    numMoving++;
-	                }
-	            }
-	        }
-	        return numMoving;
-	    };
-	    FallingItem.isMoving = function (movementStatus) {
-	        if ((movementStatus === "falling")
-	            || (movementStatus === "movingLeft")
-	            || (movementStatus === "movingRight")
-	            || (movementStatus === "moveLeft")
-	            || (movementStatus === "moveRight")) {
-	            return true;
-	        }
-	        else {
-	            return false;
-	        }
-	    };
-	    FallingItem.prototype.checkForCollision = function () {
-	        var raycaster = new THREE.Raycaster(this.mesh.position, new THREE.Vector3(0, -1, 0), 0, this.dim.height / 2);
-	        var intersects = raycaster.intersectObjects(this.screen.scene.children);
-	        if (intersects.length > 0) {
-	            return true;
-	        }
-	        else {
-	            return false;
-	        }
-	    };
-	    FallingItem.prototype.runDeathTween = function () {
-	        var fallingItem = this;
-	        var deathShrinkTween = new TWEEN.Tween(this.mesh.scale)
-	            .to({ x: .1, y: .1, z: .1 }, this.tweenInfo.deathTime * 500)
-	            .delay(0)
-	            .onStart(function () {
-	            fallingItem.tweenInfo.deathShrinkTweenComplete = false;
-	        }, fallingItem)
-	            .onUpdate(function () {
-	            // console.log(this.x + ", " + this.y + ", " + this.z);
-	        }, fallingItem)
-	            .onComplete(function () {
-	            fallingItem.tweenInfo.deathShrinkTweenComplete = true;
-	        }, fallingItem)
-	            .start();
-	        var deathRotateTween = new TWEEN.Tween(this.mesh.rotation)
-	            .to({ y: 2 * Math.PI }, this.tweenInfo.deathTime * 500)
-	            .delay(0)
-	            .onStart(function () {
-	            fallingItem.tweenInfo.deathRotateTweenComplete = false;
-	        }, fallingItem)
-	            .onUpdate(function () {
-	            // console.log(this.x + ", " + this.y + ", " + this.z);
-	        }, fallingItem)
-	            .onComplete(function () {
-	            fallingItem.tweenInfo.deathRotateTweenComplete = true;
-	        }, fallingItem)
-	            .start();
-	    };
-	    FallingItem.prototype.resetDeadItem = function () {
-	        this.killThreeItem(this.thisThreeItemID);
-	        this.screen.scene.remove(this.mesh);
-	        this.mesh.scale.x = 1;
-	        this.mesh.scale.y = this.dim.height * 40;
-	        this.mesh.scale.z = 1;
-	        this.mesh.position.x = 0;
-	        this.mesh.position.y = 0;
-	        // this.screen.scene.add(this.mesh);
-	        this.movementStatus = "waiting";
-	    };
-	    FallingItem.prototype.sideTweenComplete = function () {
-	        return ((this.tweenInfo.vertTweenComplete)
-	            && (this.tweenInfo.horzTweenComplete)
-	            && (this.tweenInfo.rotTweenComplete));
-	    };
-	    FallingItem.prototype.runSideMoveTween = function () {
-	        var fallingItem = this;
-	        var horzTween = new TWEEN.Tween(fallingItem.mesh.position)
-	            .to({ x: fallingItem.tweenInfo.newPos.x }, fallingItem.tweenInfo.movementTime * 1000)
-	            .easing(TWEEN.Easing.Cubic.InOut)
-	            .onStart(function () {
-	            fallingItem.tweenInfo.horzTweenComplete = false;
-	        }, fallingItem)
-	            .onUpdate(function () {
-	            // console.log("x : " + this.x);
-	        })
-	            .onComplete(function () {
-	            fallingItem.tweenInfo.horzTweenComplete = true;
-	        }, fallingItem)
-	            .start();
-	        var vertTween = new TWEEN.Tween(fallingItem.mesh.position)
-	            .to({ y: fallingItem.tweenInfo.newPos.y }, fallingItem.tweenInfo.movementTime * 500)
-	            .repeat(1)
-	            .delay(0)
-	            .yoyo(true)
-	            .easing(TWEEN.Easing.Cubic.InOut)
-	            .onStart(function () {
-	            fallingItem.tweenInfo.vertTweenComplete = false;
-	        }, fallingItem)
-	            .onUpdate(function () {
-	            // console.log("y : " + this.y);
-	        })
-	            .onComplete(function () {
-	            fallingItem.tweenInfo.vertTweenComplete = true;
-	        }, fallingItem)
-	            .start();
-	        var rotTween = new TWEEN.Tween(fallingItem.mesh.rotation)
-	            .to({ y: 2 * Math.PI }, fallingItem.tweenInfo.movementTime * 1000)
-	            .delay(0)
-	            .easing(TWEEN.Easing.Cubic.InOut)
-	            .onStart(function () {
-	            fallingItem.tweenInfo.rotTweenComplete = false;
-	        }, fallingItem)
-	            .onUpdate(function () {
-	            // console.log("y : " + this.y);
-	        })
-	            .onComplete(function () {
-	            fallingItem.tweenInfo.rotTweenComplete = true;
-	        }, fallingItem)
-	            .start();
-	    };
-	    FallingItem.FallingItemID = 0;
-	    FallingItem.FallingItems = {};
-	    FallingItem.moveQueue = []; // a FIFO move queue that is executed by the currently falling block
-	    FallingItem.fallFaster = false;
-	    return FallingItem;
-	})(ThreeItem.ThreeItem);
-	exports.FallingItem = FallingItem;
-
-
-/***/ },
-/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/**
@@ -67743,6 +68422,915 @@
 		}
 	
 	})(this);
+
+
+/***/ },
+/* 15 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var THREE = __webpack_require__(3);
+	var Utils = (function () {
+	    function Utils() {
+	    }
+	    Utils.hammerEventReceived = function (event, camera, intersectees) {
+	        // output the type of event it was
+	        // console.log(event.srcEvent + " received");
+	        var tapPoint = new THREE.Vector2();
+	        switch (event.pointerType) {
+	            case "touch":
+	            case "mouse":
+	                tapPoint.x = event.center.x;
+	                tapPoint.y = event.center.y;
+	                break;
+	        }
+	        // console.log("touchpoint " + tapPoint.x + ", " + tapPoint.y);
+	        var worldCoords = Utils.convertCoordsToThreescreen(new THREE.Vector2(tapPoint.x, tapPoint.y));
+	        // console.log("world Coords: " + worldCoords.x + ", " + worldCoords.y);
+	        var raycaster = new THREE.Raycaster(); // create once
+	        // raycasting code from each camera copied from here:
+	        // http://stackoverflow.com/questions/25024044/three-js-raycasting-with-camera-as-origin
+	        if (camera instanceof THREE.OrthographicCamera) {
+	            worldCoords.unproject(camera);
+	            var dir = new THREE.Vector3;
+	            dir.set(0, 0, -1).transformDirection(camera.matrixWorld);
+	            raycaster.set(worldCoords, dir);
+	        }
+	        else if (camera instanceof THREE.PerspectiveCamera) {
+	            worldCoords.unproject(camera);
+	            raycaster.set(camera.position, worldCoords.sub(camera.position).normalize());
+	        }
+	        var intersectionArray = raycaster.intersectObjects(intersectees);
+	        if (intersectionArray.length > 0) {
+	            return intersectionArray;
+	        }
+	    };
+	    Utils.convertCoordsToThreescreen = function (coords) {
+	        var worldCoords = new THREE.Vector3((coords.x / window.innerWidth) * 2 - 1, -(coords.y / window.innerHeight) * 2 + 1, -1);
+	        return worldCoords;
+	    };
+	    // create a button
+	    //  returns an object3D to be added to a scene
+	    Utils.createThreeButton = function (label, color, font, id) {
+	        var btn = new THREE.Object3D();
+	        var glowAdd = 1.15; // the multiplier size of the glow portion
+	        var startTextGeo = new THREE.TextGeometry(label, {
+	            font: font,
+	            size: 25,
+	            height: 0,
+	            curveSegments: 48,
+	            bevelEnabled: false
+	        });
+	        THREE.GeometryUtils.center(startTextGeo);
+	        var textMat = new THREE.MeshBasicMaterial({});
+	        var textMesh = new THREE.Mesh(startTextGeo, textMat);
+	        var butWidth = 96;
+	        var butHeight = 60;
+	        var foreGeo = new THREE.PlaneGeometry(butWidth, butHeight);
+	        var foreMat = new THREE.MeshBasicMaterial({
+	            color: color
+	        });
+	        var foreMesh = new THREE.Mesh(foreGeo, foreMat);
+	        var glowGeo = new THREE.PlaneGeometry(butWidth * glowAdd, butHeight * glowAdd);
+	        var glowMat = new THREE.MeshBasicMaterial({
+	            color: color,
+	            opacity: .6,
+	            transparent: true
+	        });
+	        var gloMesh = new THREE.Mesh(glowGeo, glowMat);
+	        foreMesh.position.z = -1;
+	        gloMesh.position.z = -2;
+	        // label the meshes as part of the button
+	        gloMesh.userData.id = id;
+	        textMesh.userData.id = id;
+	        foreMesh.userData.id = id;
+	        btn.add(gloMesh);
+	        btn.add(foreMesh);
+	        btn.add(textMesh);
+	        return btn;
+	    };
+	    // start the tweens associcated with pushing a button that is a THREE.Object3D
+	    Utils.pushButton = function (btn) {
+	        var tween = new TWEEN.Tween(btn.scale)
+	            .to({ x: .9, y: .9 }, 100)
+	            .repeat(1)
+	            .yoyo(true)
+	            .start();
+	    };
+	    return Utils;
+	})();
+	exports.Utils = Utils;
+
+
+/***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var THREE = __webpack_require__(3);
+	var GameScreen = __webpack_require__(10);
+	var StaticItem = __webpack_require__(17);
+	var Control = __webpack_require__(19);
+	var PlayScreen = (function (_super) {
+	    __extends(PlayScreen, _super);
+	    function PlayScreen(options) {
+	        _super.call(this, options);
+	        this.controls = { leftButton: null, downButton: null, rightButton: null };
+	        this.blockWidth = options.blockWidth;
+	        var groundY = -10 * this.blockWidth;
+	        // create the ground
+	        var ground = new StaticItem.StaticItem({
+	            width: this.blockWidth * 11,
+	            height: this.blockWidth,
+	            depth: this.blockWidth,
+	            x: 0,
+	            y: groundY,
+	            z: 0,
+	            color: new THREE.Color("rgb(0,140,0)"),
+	            name: "ground",
+	            screen: this
+	        });
+	        this.add(ground);
+	        // create controls
+	        var buttonYDisplacement = 2.5 * this.blockWidth;
+	        this.controls.leftButton = new Control.Control("circle", "leftButton", new THREE.Vector3(-5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
+	            size: this.blockWidth * 1.5,
+	            segments: 32,
+	            color: new THREE.Color("rgb(140,140,0)")
+	        });
+	        this.controls.downButton = new Control.Control("circle", "downButton", new THREE.Vector3(0, groundY - buttonYDisplacement, 0), {
+	            size: this.blockWidth * 1.5,
+	            segments: 32,
+	            color: new THREE.Color("rgb(140,140,0)")
+	        });
+	        this.controls.rightButton = new Control.Control("circle", "rightButton", new THREE.Vector3(5 * this.blockWidth, groundY - buttonYDisplacement, 0), {
+	            size: this.blockWidth * 1.5,
+	            segments: 32,
+	            color: new THREE.Color("rgb(140,140,0)")
+	        });
+	        for (var control in this.controls) {
+	            if (this.controls.hasOwnProperty(control)) {
+	                this.add(this.controls[control]);
+	            }
+	        }
+	        this.createLights();
+	        // center the camera
+	        this.positionCamera(0, 10, 18);
+	    }
+	    PlayScreen.prototype.createLights = function () {
+	        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
+	        directionalLight.position.set(0, 0, 20).normalize();
+	        this.scene.add(directionalLight);
+	    };
+	    return PlayScreen;
+	})(GameScreen.Screen);
+	exports.PlayScreen = PlayScreen;
+
+
+/***/ },
+/* 17 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	/// <reference path="./defs/tween.js/tween.js.d.ts" />
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var THREE = __webpack_require__(3);
+	var ThreeItem = __webpack_require__(18);
+	var StaticItem = (function (_super) {
+	    __extends(StaticItem, _super);
+	    function StaticItem(options) {
+	        _super.call(this);
+	        this.dim = { width: null, height: null, depth: null };
+	        this.thisStaticItemID = StaticItem.StaticItemID;
+	        StaticItem.StaticItemID++;
+	        this.name = options && options.name;
+	        this.screen = options && options.screen;
+	        // create the mesh
+	        this.dim.width = options && options.width || 1;
+	        this.dim.height = options && options.height || 1;
+	        this.dim.depth = options && options.depth || 1;
+	        this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
+	        this.material = new THREE.MeshBasicMaterial({
+	            color: (options && options.color) ? options.color : new THREE.Color("rgb(255, 0, 0)")
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	        this.mesh.position.set(options && options.x || 0, options && options.y || 0, options && options.z || 0);
+	        // console.log("StaticItem " + this.thisThreeItemID + " created");
+	        // add this item to the array of physics items
+	        StaticItem.StaticItems[this.thisStaticItemID] = this;
+	        this.mesh.userData.StaticItemID = this.thisStaticItemID; // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the StaticItem
+	        // console.log ("StaticItem " + this.thisStaticItemID + " created");
+	    }
+	    StaticItem.prototype.update = function (dt, time) {
+	    };
+	    StaticItem.getStaticItemByID = function (id) {
+	        return StaticItem.StaticItems[id];
+	    };
+	    StaticItem.getStaticItemByName = function (name) {
+	        for (var item in StaticItem.StaticItems) {
+	            if (StaticItem.StaticItems.hasOwnProperty(item)) {
+	                if (StaticItem.StaticItems[item].name === name) {
+	                    return StaticItem.StaticItems[item];
+	                }
+	            }
+	        }
+	        return null;
+	    };
+	    StaticItem.StaticItemID = 0;
+	    StaticItem.StaticItems = {};
+	    return StaticItem;
+	})(ThreeItem.ThreeItem);
+	exports.StaticItem = StaticItem;
+
+
+/***/ },
+/* 18 */
+/***/ function(module, exports) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	var ThreeItem = (function () {
+	    function ThreeItem() {
+	        this.thisThreeItemID = ThreeItem.threeItemID;
+	        // store this physicsObject in an array for later
+	        ThreeItem.threeItems[this.thisThreeItemID] = this;
+	        // console.log("Object " + ThreeItem.threeItemID + " created.");
+	        ThreeItem.threeItemID++;
+	    }
+	    // get items by id
+	    ThreeItem.getItemByID = function (id) {
+	        return ThreeItem.threeItems[id];
+	    };
+	    // get items by name
+	    ThreeItem.getItemByName = function (name) {
+	        for (var item in ThreeItem.threeItems) {
+	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
+	                if (ThreeItem.threeItems[item].name === name) {
+	                    return ThreeItem.threeItems[item];
+	                }
+	            }
+	        }
+	    };
+	    // call the update function on every three item we've made
+	    ThreeItem.update = function (dt, time) {
+	        for (var item in ThreeItem.threeItems) {
+	            if (ThreeItem.threeItems.hasOwnProperty(item)) {
+	                ThreeItem.threeItems[item].update(dt, time);
+	            }
+	        }
+	    };
+	    ThreeItem.prototype.killThreeItem = function (id) {
+	        delete ThreeItem.threeItems[id];
+	    };
+	    ThreeItem.threeItemID = 0;
+	    ThreeItem.threeItems = {};
+	    return ThreeItem;
+	})();
+	exports.ThreeItem = ThreeItem;
+
+
+/***/ },
+/* 19 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var THREE = __webpack_require__(3);
+	var ThreeItem = __webpack_require__(18);
+	var AssetManager = __webpack_require__(5);
+	var Control = (function (_super) {
+	    __extends(Control, _super);
+	    function Control(shape, name, pos, options) {
+	        _super.call(this);
+	        this.thisControlID = Control.controlID;
+	        this.name = name;
+	        switch (shape) {
+	            case "sphere":
+	                this.createSphereMesh(options);
+	                break;
+	            case "circle":
+	                this.createCircleMesh(options);
+	                break;
+	            case "square":
+	            case "box":
+	                this.createBoxMesh(options);
+	                break;
+	        }
+	        this.mesh.position.set(pos.x, pos.y, pos.z);
+	        this.mesh.userData.controlID = this.thisControlID;
+	        Control.controls[this.thisControlID] = this;
+	        Control.meshes.push(this.mesh);
+	        Control.controlID++;
+	    }
+	    Control.getControlByID = function (id) {
+	        return Control.controls[id];
+	    };
+	    Control.prototype.getControlByName = function (name) {
+	        for (var control in Control.controls) {
+	            if (Control.controls.hasOwnProperty(control)) {
+	                if (Control.controls[control].name === name) {
+	                    return Control.controls[control];
+	                }
+	            }
+	        }
+	    };
+	    Control.prototype.createSphereMesh = function (options) {
+	        this.geometry = new THREE.SphereGeometry(options && options.size || null);
+	        this.material = new THREE.MeshBasicMaterial({
+	            color: options && options.color || null
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	    };
+	    Control.prototype.createBoxMesh = function (options) {
+	        this.geometry = new THREE.BoxGeometry(options && options.size || null, options && options.size || null, options && options.size || null);
+	        this.material = new THREE.MeshBasicMaterial({
+	            color: options && options.color || null
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	    };
+	    Control.prototype.createCircleMesh = function (options) {
+	        this.geometry = new THREE.CircleGeometry(options && options.size || null, options && options.segments || null);
+	        this.material = new THREE.MeshBasicMaterial({
+	            // color: options && options.color || null,
+	            map: AssetManager.AssetManager.getAssetByTag(this.name).texture
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	    };
+	    Control.prototype.update = function () {
+	    };
+	    Control.controlID = 0;
+	    Control.controls = {};
+	    Control.meshes = []; // an array of meshes to use in touch events
+	    return Control;
+	})(ThreeItem.ThreeItem);
+	exports.Control = Control;
+
+
+/***/ },
+/* 20 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	/// <reference path="./fallingItem.ts" />
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var THREE = __webpack_require__(3);
+	var FallingItem = __webpack_require__(21);
+	var Candy = (function (_super) {
+	    __extends(Candy, _super);
+	    function Candy(options) {
+	        _super.call(this, options);
+	        this.candyTypes = [
+	            {
+	                name: "red",
+	                color: 0xff0000,
+	            },
+	            {
+	                name: "green",
+	                color: 0x00ff00,
+	            },
+	            {
+	                name: "blue",
+	                color: 0x0000ff,
+	            },
+	            {
+	                name: "yellow",
+	                color: 0xffff00,
+	            },
+	            {
+	                name: "purple",
+	                color: 0xff00ff,
+	            },
+	        ];
+	        this.thisCandyID = Candy.candyID;
+	        // select a candy type
+	        var min = 0; // left bound
+	        var max = this.candyTypes.length; // right bound
+	        var candy = this.candyTypes[Math.floor(Math.random() * (max - min) + min)];
+	        // create the mesh
+	        this.dim.width = options && options.width || 1;
+	        this.dim.height = options && options.height || 1;
+	        this.dim.depth = options && options.depth || 1;
+	        // this.geometry = new THREE.BoxGeometry(this.dim.width, this.dim.height, this.dim.depth);
+	        this.geometry = new THREE.SphereGeometry(this.dim.width / 2, 16, 16);
+	        this.material = new THREE.MeshPhongMaterial({
+	            color: candy.color,
+	            specular: candy.color,
+	            shininess: 50,
+	            shading: THREE.SmoothShading
+	        });
+	        this.mesh = new THREE.Mesh(this.geometry, this.material);
+	        this.mesh.position.set(options && options.x || 0, options && options.y || 0, options && options.z || 0);
+	        // this.mesh.material.color.setHex(candy.color);
+	        this.mesh.userData.FallingItemID = this.thisFallingItemID; // need to attach an ID to the THREE.js mesh so that we can call back to this class when dealing with the mesh. For example, raycaster returns the mesh, but we need to get back to the FallingItem
+	        this.mesh.userData.candyID = this.thisCandyID;
+	        Candy.candyMeshes.push(this.mesh); // we'll need to shot rays against these later
+	        this.type = candy.name;
+	        this.name = candy.name;
+	        Candy.candies[this.thisCandyID] = this;
+	        Candy.candyID++;
+	    }
+	    Candy.prototype.update = function (dt, time) {
+	        _super.prototype.update.call(this, dt, time);
+	        switch (this.movementStatus) {
+	            case "stopped":
+	                this.normalizePosition(); // round the positions to the nearest 5 tenths
+	                var collisionMeshArrays = this.getCollisionMeshArrays();
+	                var adjacentCandies = this.getAdjacentcandies(collisionMeshArrays);
+	                this.checkForMatchingCandies(adjacentCandies);
+	                if (this.movementStatus !== "kill") {
+	                    this.movementStatus = "checked";
+	                }
+	                break;
+	        }
+	    };
+	    Candy.getCandyByID = function (id) {
+	        return Candy.candies[id];
+	    };
+	    /*********************************************************
+	     * check for matches around this blocks
+	     *  arrays is an object containing multiple arrays that contain
+	     *      the intersected objects around this block
+	     */
+	    Candy.prototype.checkForMatchingCandies = function (arrays) {
+	        var currentType = this.type;
+	        for (var array in arrays) {
+	            if ((arrays.hasOwnProperty(array)) && (arrays[array].length > 0)) {
+	                var matchCount = 0;
+	                for (var i = 0; i < arrays[array].length; i++) {
+	                    if (arrays[array][i].type === currentType) {
+	                        matchCount++;
+	                    }
+	                }
+	                if (matchCount === arrays[array].length) {
+	                    for (var i = 0; i < arrays[array].length; i++) {
+	                        arrays[array][i].movementStatus = "kill";
+	                    }
+	                }
+	            }
+	        }
+	    };
+	    /***********************************************
+	     * get the candy types for each array of candies
+	     */
+	    /********************************************
+	     * return arrays containing the meshes surrounding this block
+	     *  returns an object containing the meshes to the left, right, up, and down a distance of two objects away
+	     */
+	    Candy.prototype.getCollisionMeshArrays = function () {
+	        var originPoint = this.mesh.position.clone();
+	        var myRays = { left: null, right: null, up: null, down: null };
+	        myRays.left = new THREE.Raycaster(originPoint, new THREE.Vector3(-1, 0, 0), 0, this.dim.width * 2);
+	        myRays.right = new THREE.Raycaster(originPoint, new THREE.Vector3(1, 0, 0), 0, this.dim.width * 2);
+	        myRays.up = new THREE.Raycaster(originPoint, new THREE.Vector3(0, 1, 0), 0, this.dim.height * 2);
+	        myRays.down = new THREE.Raycaster(originPoint, new THREE.Vector3(0, -1, 0), 0, this.dim.height * 2);
+	        var collisionArrays = { left: null, right: null, up: null, down: null };
+	        collisionArrays.left = myRays.left.intersectObjects(Candy.candyMeshes);
+	        collisionArrays.right = myRays.right.intersectObjects(Candy.candyMeshes);
+	        collisionArrays.up = myRays.up.intersectObjects(Candy.candyMeshes);
+	        collisionArrays.down = myRays.down.intersectObjects(Candy.candyMeshes);
+	        this.removeDuplicates(collisionArrays);
+	        this.removeNoncontiguousItems(collisionArrays);
+	        if (collisionArrays.down[0]) {
+	            this.bumpUpBottomDistance(collisionArrays.down);
+	        }
+	        return collisionArrays;
+	    };
+	    /*******************************************************
+	     * convert the adjacent meshes to candies to the left, right, up, down for two meshes away and 1 block surrounding this block (with this block in the middle)
+	     */
+	    Candy.prototype.getAdjacentcandies = function (arrays) {
+	        var adjacentCandies = {
+	            left: [],
+	            right: [],
+	            up: [],
+	            down: [],
+	            midHorz: [],
+	            midVert: [],
+	            // the following arrays look at 4 block arrays in with this candy is second from the front or back
+	            left1: [],
+	            right1: [],
+	            up1: [],
+	            down1: [] // second from the bottom
+	        };
+	        if (arrays.left.length === 2) {
+	            adjacentCandies.left.push(Candy.getCandyByID(arrays.left[1].object.userData.candyID), Candy.getCandyByID(arrays.left[0].object.userData.candyID), this);
+	        }
+	        if (arrays.right.length === 2) {
+	            adjacentCandies.right.push(this, Candy.getCandyByID(arrays.right[0].object.userData.candyID), Candy.getCandyByID(arrays.right[1].object.userData.candyID));
+	        }
+	        if (arrays.up.length === 2) {
+	            adjacentCandies.up.push(Candy.getCandyByID(arrays.up[1].object.userData.candyID), Candy.getCandyByID(arrays.up[0].object.userData.candyID), this);
+	        }
+	        if (arrays.down.length === 2) {
+	            adjacentCandies.down.push(this, Candy.getCandyByID(arrays.down[0].object.userData.candyID), Candy.getCandyByID(arrays.down[1].object.userData.candyID));
+	        }
+	        if ((arrays.left.length >= 1) && (arrays.right.length >= 1)) {
+	            adjacentCandies.midHorz.push(Candy.getCandyByID(arrays.left[0].object.userData.candyID), this, Candy.getCandyByID(arrays.right[0].object.userData.candyID));
+	        }
+	        // second from the left
+	        if ((arrays.left.length >= 1) && (arrays.right.length >= 2)) {
+	            adjacentCandies.midHorz.push(Candy.getCandyByID(arrays.left[0].object.userData.candyID), this, Candy.getCandyByID(arrays.right[0].object.userData.candyID), Candy.getCandyByID(arrays.right[1].object.userData.candyID));
+	        }
+	        // second from the right
+	        if ((arrays.left.length >= 2) && (arrays.right.length >= 1)) {
+	            adjacentCandies.midHorz.push(Candy.getCandyByID(arrays.left[1].object.userData.candyID), Candy.getCandyByID(arrays.left[0].object.userData.candyID), this, Candy.getCandyByID(arrays.right[0].object.userData.candyID));
+	        }
+	        if ((arrays.up.length >= 1) && (arrays.down.length >= 1)) {
+	            adjacentCandies.midVert.push(Candy.getCandyByID(arrays.up[0].object.userData.candyID), this, Candy.getCandyByID(arrays.down[0].object.userData.candyID));
+	        }
+	        // second from the top
+	        if ((arrays.up.length >= 1) && (arrays.down.length >= 2)) {
+	            adjacentCandies.up1.push(Candy.getCandyByID(arrays.up[0].object.userData.candyID), this, Candy.getCandyByID(arrays.down[0].object.userData.candyID), Candy.getCandyByID(arrays.down[1].object.userData.candyID));
+	        }
+	        // second from the bottom
+	        if ((arrays.up.length >= 2) && (arrays.down.length >= 1)) {
+	            adjacentCandies.down.push(Candy.getCandyByID(arrays.up[1].object.userData.candyID), Candy.getCandyByID(arrays.up[0].object.userData.candyID), this, Candy.getCandyByID(arrays.down[0].object.userData.candyID));
+	        }
+	        return adjacentCandies;
+	    };
+	    /*************************************
+	     * normalize the position so that blocks are centered on the nearest 5 tenths location
+	     */
+	    Candy.prototype.normalizePosition = function () {
+	        this.mesh.position.x = Math.ceil(this.mesh.position.x * 50) / 50;
+	        this.mesh.position.y = Math.ceil(this.mesh.position.y * 50) / 50;
+	        this.mesh.position.z = Math.ceil(this.mesh.position.z * 50) / 50;
+	        // console.log ("Normalized Pos = " + this.mesh.position.x + ", " + this.mesh.position.y + ", " + this.mesh.position.z);
+	    };
+	    /*********************************
+	     * Ensure the distance between the center of this block and the one below it is exactly equal to one block
+	     */
+	    Candy.prototype.bumpUpBottomDistance = function (array) {
+	        if (array[0].distance < this.dim.height) {
+	            this.mesh.position.y = array[0].object.position.y + this.dim.height;
+	        }
+	    };
+	    /****************************************
+	     * Remove duplicate items from the detected items arrays
+	     */
+	    Candy.prototype.removeDuplicates = function (collisionArrays) {
+	        for (var ray in collisionArrays) {
+	            if (collisionArrays.hasOwnProperty(ray)) {
+	                for (var i = collisionArrays[ray].length - 1; i > 0; i--) {
+	                    if (collisionArrays[ray][i].object.userData.candyID === collisionArrays[ray][i - 1].object.userData.candyID) {
+	                        collisionArrays[ray].splice(i, 1);
+	                    }
+	                }
+	            }
+	        }
+	    };
+	    /****************************************
+	     * empty out arrays that dont detect an item immediately next to this block
+	     */
+	    Candy.prototype.removeNoncontiguousItems = function (collisionArrays) {
+	        for (var ray in collisionArrays) {
+	            if (collisionArrays.hasOwnProperty(ray)) {
+	                if ((collisionArrays[ray][0]) && (collisionArrays[ray][0].distance > this.dim.width)) {
+	                    collisionArrays[ray] = [];
+	                }
+	            }
+	        }
+	    };
+	    Candy.candyID = 0;
+	    Candy.candies = {};
+	    Candy.candyMeshes = [];
+	    return Candy;
+	})(FallingItem.FallingItem);
+	exports.Candy = Candy;
+
+
+/***/ },
+/* 21 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/// <reference path="./defs/three/three.d.ts" />
+	/// <reference path="./defs/tween.js/tween.js.d.ts" />
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var TWEEN = __webpack_require__(14);
+	var THREE = __webpack_require__(3);
+	var ThreeItem = __webpack_require__(18);
+	var FallingItem = (function (_super) {
+	    __extends(FallingItem, _super);
+	    function FallingItem(options) {
+	        _super.call(this);
+	        this.movementStatus = "falling";
+	        this.fallingSpeed = 100;
+	        this.fallFasterMultiplier = 5;
+	        this.dim = { width: null, height: null, depth: null };
+	        this.tweenInfo = {
+	            deathTime: .25,
+	            movementTime: .25,
+	            pos: { x: null, y: null },
+	            newPos: { x: null, y: null },
+	            // vertTween: null,
+	            // horzTween: null,
+	            // deathTween: null,
+	            vertTweenComplete: false,
+	            horzTweenComplete: false,
+	            rotTweenComplete: false,
+	            deathShrinkTweenComplete: false,
+	            deathRotateTweenComplete: false,
+	            tweenUp: null,
+	            tweenDown: null,
+	            vertCount: 0
+	        };
+	        this.thisFallingItemID = FallingItem.FallingItemID;
+	        FallingItem.FallingItemID++;
+	        this.name = options && options.name;
+	        this.screen = options && options.screen;
+	        this.movementStatus = options && options.movementStatus || "falling";
+	        // console.log("FallingItem " + this.thisThreeItemID + " created");
+	        // add this item to the array of physics items
+	        FallingItem.FallingItems[this.thisFallingItemID] = this;
+	        // console.log ("FallingItem " + this.thisFallingItemID + " created");
+	    }
+	    FallingItem.prototype.update = function (dt, time) {
+	        // falling item behavior is based on movement status
+	        switch (this.movementStatus) {
+	            case "falling":
+	                var ground = ThreeItem.ThreeItem.getItemByName("ground");
+	                if (FallingItem.fallFaster) {
+	                    this.mesh.position.y -= this.fallingSpeed * this.fallFasterMultiplier * dt;
+	                }
+	                else {
+	                    this.mesh.position.y -= this.fallingSpeed * dt;
+	                }
+	                // don't let the blocks be moved to a point below the ground
+	                if ((this.mesh.position.y < ground.mesh.position.y
+	                    + this.dim.height / 2
+	                    + ground.dim.height / 2) && (this.hasOwnProperty("thisCandyID"))) {
+	                    // move the box up and then tell it to stop moving
+	                    this.mesh.position.y = ground.mesh.position.y
+	                        + this.dim.height / 2
+	                        + ground.dim.height / 2;
+	                    this.movementStatus = "stopped";
+	                    // empty the move queue so that the next block starts out with a new slate
+	                    FallingItem.moveQueue = [];
+	                    // console.log("move queue emptied 1");
+	                    break;
+	                }
+	                // check to see if the block has collided with anything
+	                if (this.checkForCollision()) {
+	                    this.movementStatus = "stopped";
+	                    // empty the move queue so that the next block starts out with a new slate
+	                    FallingItem.moveQueue = [];
+	                    // console.log("move queue emptied 2");
+	                    break;
+	                }
+	                // check to see if we've been told to move left or right
+	                if (FallingItem.moveQueue.length > 0) {
+	                    switch (FallingItem.moveQueue[0]) {
+	                        case "left":
+	                            this.movementStatus = "moveLeft";
+	                            break;
+	                        case "right":
+	                            this.movementStatus = "moveRight";
+	                            break;
+	                    }
+	                    FallingItem.moveQueue.shift(); // remove this directive from the queue
+	                    break;
+	                }
+	                break;
+	            case "stopped":
+	            case "checked":
+	                if (!this.checkForCollision()) {
+	                    this.movementStatus = "falling";
+	                }
+	                break;
+	            case "moveLeft": // just received directive to move left
+	            case "moveRight":
+	                // y movement direction never changes
+	                this.tweenInfo.newPos.y = this.mesh.position.y + this.dim.height;
+	                switch (this.movementStatus) {
+	                    case "moveLeft":
+	                        this.movementStatus = "movingLeft";
+	                        this.tweenInfo.newPos.x = this.mesh.position.x - this.dim.width;
+	                        break;
+	                    case "moveRight":
+	                        this.tweenInfo.newPos.x = this.mesh.position.x + this.dim.width;
+	                        this.movementStatus = "movingRight";
+	                        break;
+	                }
+	                // don't go beyond the borders of the field
+	                if ((this.tweenInfo.newPos.x >= -5 * this.dim.width) && (this.tweenInfo.newPos.x <= 5 * this.dim.width)) {
+	                    // console.log("cur x: " + this.tweenInfo.pos.x + " | new x: " + this.tweenInfo.newPos.x);
+	                    // console.log("cur y: " + this.tweenInfo.pos.y + " | new y: " + this.tweenInfo.newPos.y);
+	                    // var that = this;
+	                    // run the sideways movment tween
+	                    this.runSideMoveTween();
+	                }
+	                else {
+	                    // just go back to falling if the user
+	                    // tries to go past the left or right boundaries
+	                    this.movementStatus = "falling";
+	                }
+	                break;
+	            case "movingLeft":
+	            case "movingRight":
+	                TWEEN.update();
+	                if (this.sideTweenComplete()) {
+	                    this.movementStatus = "falling";
+	                }
+	                break;
+	            case "rigid":
+	                break;
+	            case "unmovable":
+	                break;
+	            case "kill":
+	                this.runDeathTween();
+	                this.movementStatus = "dying";
+	                break;
+	            case "dying":
+	                TWEEN.update();
+	                if ((this.tweenInfo.deathRotateTweenComplete) &&
+	                    (this.tweenInfo.deathShrinkTweenComplete)) {
+	                    this.movementStatus = "dead";
+	                }
+	                break;
+	            case "dead":
+	                this.resetDeadItem();
+	                break;
+	        }
+	    };
+	    FallingItem.addMove = function (direction) {
+	        FallingItem.moveQueue.push(direction);
+	    };
+	    FallingItem.killRandom = function () {
+	        if (Math.random() > .01) {
+	            var max = FallingItem.FallingItemID;
+	            var min = 1;
+	            var randFallingItem = Math.floor(Math.random() * (max - min) + min);
+	            if ((FallingItem.FallingItems[randFallingItem]) &&
+	                ((FallingItem.FallingItems[randFallingItem].movementStatus === "stopped") ||
+	                    (FallingItem.FallingItems[randFallingItem].movementStatus === "checked"))) {
+	                FallingItem.FallingItems[randFallingItem].movementStatus = "kill";
+	            }
+	        }
+	    };
+	    FallingItem.getFallingItemByID = function (id) {
+	        return FallingItem.FallingItems[id];
+	    };
+	    FallingItem.getFallingItemByName = function (name) {
+	        for (var item in FallingItem.FallingItems) {
+	            if (FallingItem.FallingItems.hasOwnProperty(item)) {
+	                if (FallingItem.FallingItems[item].name === name) {
+	                    return FallingItem.FallingItems[item];
+	                }
+	            }
+	        }
+	        return null;
+	    };
+	    FallingItem.getNumFallingItemsMoving = function () {
+	        var numMoving = 0;
+	        for (var fallingItem in FallingItem.FallingItems) {
+	            if (FallingItem.FallingItems.hasOwnProperty(fallingItem)) {
+	                // all of these statuses means something is falling
+	                if (FallingItem.isMoving(FallingItem.FallingItems[fallingItem].movementStatus)) {
+	                    numMoving++;
+	                }
+	            }
+	        }
+	        return numMoving;
+	    };
+	    FallingItem.isMoving = function (movementStatus) {
+	        if ((movementStatus === "falling")
+	            || (movementStatus === "movingLeft")
+	            || (movementStatus === "movingRight")
+	            || (movementStatus === "moveLeft")
+	            || (movementStatus === "moveRight")) {
+	            return true;
+	        }
+	        else {
+	            return false;
+	        }
+	    };
+	    FallingItem.prototype.checkForCollision = function () {
+	        var raycaster = new THREE.Raycaster(this.mesh.position, new THREE.Vector3(0, -1, 0), 0, this.dim.height / 2);
+	        var intersects = raycaster.intersectObjects(this.screen.scene.children);
+	        if (intersects.length > 0) {
+	            return true;
+	        }
+	        else {
+	            return false;
+	        }
+	    };
+	    FallingItem.prototype.runDeathTween = function () {
+	        var fallingItem = this;
+	        var deathShrinkTween = new TWEEN.Tween(this.mesh.scale)
+	            .to({ x: .1, y: .1, z: .1 }, this.tweenInfo.deathTime * 500)
+	            .delay(0)
+	            .onStart(function () {
+	            fallingItem.tweenInfo.deathShrinkTweenComplete = false;
+	        }, fallingItem)
+	            .onUpdate(function () {
+	            // console.log(this.x + ", " + this.y + ", " + this.z);
+	        }, fallingItem)
+	            .onComplete(function () {
+	            fallingItem.tweenInfo.deathShrinkTweenComplete = true;
+	        }, fallingItem)
+	            .start();
+	        var deathRotateTween = new TWEEN.Tween(this.mesh.rotation)
+	            .to({ y: 2 * Math.PI }, this.tweenInfo.deathTime * 500)
+	            .delay(0)
+	            .onStart(function () {
+	            fallingItem.tweenInfo.deathRotateTweenComplete = false;
+	        }, fallingItem)
+	            .onUpdate(function () {
+	            // console.log(this.x + ", " + this.y + ", " + this.z);
+	        }, fallingItem)
+	            .onComplete(function () {
+	            fallingItem.tweenInfo.deathRotateTweenComplete = true;
+	        }, fallingItem)
+	            .start();
+	    };
+	    FallingItem.prototype.resetDeadItem = function () {
+	        this.killThreeItem(this.thisThreeItemID);
+	        this.screen.scene.remove(this.mesh);
+	        this.mesh.scale.x = 1;
+	        this.mesh.scale.y = this.dim.height * 40;
+	        this.mesh.scale.z = 1;
+	        this.mesh.position.x = 0;
+	        this.mesh.position.y = 0;
+	        // this.screen.scene.add(this.mesh);
+	        this.movementStatus = "waiting";
+	    };
+	    FallingItem.prototype.sideTweenComplete = function () {
+	        return ((this.tweenInfo.vertTweenComplete)
+	            && (this.tweenInfo.horzTweenComplete)
+	            && (this.tweenInfo.rotTweenComplete));
+	    };
+	    FallingItem.prototype.runSideMoveTween = function () {
+	        var fallingItem = this;
+	        var horzTween = new TWEEN.Tween(fallingItem.mesh.position)
+	            .to({ x: fallingItem.tweenInfo.newPos.x }, fallingItem.tweenInfo.movementTime * 1000)
+	            .easing(TWEEN.Easing.Cubic.InOut)
+	            .onStart(function () {
+	            fallingItem.tweenInfo.horzTweenComplete = false;
+	        }, fallingItem)
+	            .onUpdate(function () {
+	            // console.log("x : " + this.x);
+	        })
+	            .onComplete(function () {
+	            fallingItem.tweenInfo.horzTweenComplete = true;
+	        }, fallingItem)
+	            .start();
+	        var vertTween = new TWEEN.Tween(fallingItem.mesh.position)
+	            .to({ y: fallingItem.tweenInfo.newPos.y }, fallingItem.tweenInfo.movementTime * 500)
+	            .repeat(1)
+	            .delay(0)
+	            .yoyo(true)
+	            .easing(TWEEN.Easing.Cubic.InOut)
+	            .onStart(function () {
+	            fallingItem.tweenInfo.vertTweenComplete = false;
+	        }, fallingItem)
+	            .onUpdate(function () {
+	            // console.log("y : " + this.y);
+	        })
+	            .onComplete(function () {
+	            fallingItem.tweenInfo.vertTweenComplete = true;
+	        }, fallingItem)
+	            .start();
+	        var rotTween = new TWEEN.Tween(fallingItem.mesh.rotation)
+	            .to({ y: 2 * Math.PI }, fallingItem.tweenInfo.movementTime * 1000)
+	            .delay(0)
+	            .easing(TWEEN.Easing.Cubic.InOut)
+	            .onStart(function () {
+	            fallingItem.tweenInfo.rotTweenComplete = false;
+	        }, fallingItem)
+	            .onUpdate(function () {
+	            // console.log("y : " + this.y);
+	        })
+	            .onComplete(function () {
+	            fallingItem.tweenInfo.rotTweenComplete = true;
+	        }, fallingItem)
+	            .start();
+	    };
+	    FallingItem.FallingItemID = 0;
+	    FallingItem.FallingItems = {};
+	    FallingItem.moveQueue = []; // a FIFO move queue that is executed by the currently falling block
+	    FallingItem.fallFaster = false;
+	    return FallingItem;
+	})(ThreeItem.ThreeItem);
+	exports.FallingItem = FallingItem;
 
 
 /***/ }

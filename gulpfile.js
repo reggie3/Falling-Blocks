@@ -133,7 +133,7 @@ gulp.task('bs', function () {
 gulp.task('condev', function () {
     connect.server({
         root: ['src'],
-        port: 8000,
+        port: 8001,
         livereload: true
     });
 });

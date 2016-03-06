@@ -71,6 +71,8 @@ function createGame() {
     GameScreen.Screen.init();
     game = new GameObject.Game(GameScreen.Screen.getWidth(), GameScreen.Screen.getHeight());
     blockWidth = Math.floor(GameScreen.Screen.getWidth() / numBlocksAcrossScene);
+
+    // load the loading screen first, and pass it a callback that loads and creates everything else
     loadingScreen = new LoadingScreen.LoadingScreen({
         name: "loadingScreen",
         overlay: "loadingOverlay",
@@ -82,11 +84,10 @@ function createGame() {
         }
     }, doPreloadAndCreateScreens);
 
-    // loadingScreen.show();
+    // show the loading screen
     GameScreen.Screen.setCurrentcreen(loadingScreen);
 
-
-
+    // render loop
     let render = function() {
 
         requestAnimationFrame(render);
@@ -99,6 +100,9 @@ function createGame() {
                     );
                 }
                 break;
+            case "loadingScreen":
+                loadingScreen.update(game.clock.getDelta(), game.clock.getElapsedTime());
+            break;
         }
 
         game.render(GameScreen.Screen.getCurrentScreen());
@@ -109,6 +113,7 @@ function createGame() {
     render();
 }
 
+// do all the presload tasks (create screens, objects, etc.)
 function doPreloadAndCreateScreens() {
     AssetManager.AssetManager.loadAssets(
         function(numberAssets) {    // asset loaded update function
@@ -117,8 +122,8 @@ function doPreloadAndCreateScreens() {
             // the loading screen progress bar will increment for each asset and each of the screens
              loadingScreen.initProgressBar(numberAssets + 3);
         },
-        function() {    // asset loaded update function
-             loadingScreen.updateProgressBar(1);
+        function() {    // called when each asset is loaded
+             loadingScreen.updateProgress(1);
         },
         function() {
             console.log("finished");
@@ -129,22 +134,22 @@ function doPreloadAndCreateScreens() {
                 order: 1,
                 blockWidth: blockWidth
             });
-             loadingScreen.updateProgressBar(1);
+             loadingScreen.updateProgress(1);
             startScreen = new StartScreen.StartScreen({
                 name: "startScreen",
                 overlay: "startOverlay",
                 order: 0,
                 blockWidth: blockWidth
             });
-             loadingScreen.updateProgressBar(1);
+             loadingScreen.updateProgress(1);
             settingsScreen = new SettingsScreen.SettingsScreen({
                 name: "settingsScreen",
                 overlay: "settingsOverlay",
                 // order: 4,
                 blockWidth: blockWidth
             });
-            loadingScreen.updateProgressBar(1);
-
+            loadingScreen.updateProgress(1);
+            // automatically jump to the game play screen after all the assets are loaded
             // GameScreen.Screen.setCurrentcreen(playScreen);
         });
 }
