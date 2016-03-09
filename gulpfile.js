@@ -12,15 +12,28 @@ var watch = require('gulp-watch');
 var webpack = require('webpack');
 var sass = require('gulp-sass');
 var jade = require('gulp-jade');
+const del = require("del");
+const zip = require('gulp-zip');
 
 //custom config file
-var conf = require("./conf.json");
-var webpackConfig = require("./webpack.config.js");
+const conf = require("./conf.json");
+const webpackConfig = require("./webpack.config.js");
 
+
+/*************************
+ * create a zip of the dist for cocoon.io upload
+ */
+
+gulp.task('zip', () => {
+	return gulp.src(conf.dist.all)
+		.pipe(zip('archive.zip'))
+		.pipe(gulp.dest('./'));
+});
 /************************
  * build distribution
  */
 gulp.task('dist', function(){
+    del(conf.dist.all);
     gulp.src(conf.files.html).pipe(print()).pipe(gulp.dest(conf.dist.html));
     gulp.src(conf.files.assets).pipe(gulp.dest(conf.dist.assets));
     gulp.src(conf.files.js).pipe(gulp.dest(conf.dist.js));
@@ -142,7 +155,7 @@ gulp.task('condev', function () {
 gulp.task('condist', function () {
     connect.server({
         root: 'dist',
-        port: 8001,
+        port: 8002,
         livereload: true
     });
 });

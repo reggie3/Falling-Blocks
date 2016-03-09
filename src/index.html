@@ -3,11 +3,16 @@
   <head>
     <script src="./js/bundle.js"></script>
     <script src=".js/threeExtras/TextGeometry.js"></script>
+    <script type="text/javascript">
+      document.addEventListener('deviceready', function(){
+      console.log("Cordova is initialized and ready!");
+      }, false);
+    </script>
     <link rel="stylesheet" href="./css/styles.css">
     <link rel="manifest" href="./manifest.json">
     <title>Webpack + Typescript + Three.js 1</title>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1">
   </head>
   <body>
     <div id="startOverlay" class="overlay">

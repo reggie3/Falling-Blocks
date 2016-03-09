@@ -4,6 +4,7 @@
 import * as TWEEN from "tween.js";
 import * as THREE from "three";
 import ThreeItem = require("./threeItem");
+import AssetManager = require("./assetManager");
 
 export class FallingItem extends ThreeItem.ThreeItem {
     static FallingItemID: number = 0;
@@ -77,6 +78,7 @@ export class FallingItem extends ThreeItem.ThreeItem {
                             + this.dim.height / 2
                             + ground.dim.height / 2;
                             this.movementStatus = "stopped";
+                            AssetManager.AssetManager.assets.glassClink.soundSprite.play();
                             // empty the move queue so that the next block starts out with a new slate
                             FallingItem.moveQueue = [];
                             // console.log("move queue emptied 1");
@@ -86,6 +88,7 @@ export class FallingItem extends ThreeItem.ThreeItem {
                 // check to see if the block has collided with anything
                 if (this.checkForCollision()) {
                     this.movementStatus = "stopped";
+                    AssetManager.AssetManager.assets.glassClink.soundSprite.play();
 
                     // empty the move queue so that the next block starts out with a new slate
                     FallingItem.moveQueue = [];
@@ -148,7 +151,7 @@ export class FallingItem extends ThreeItem.ThreeItem {
                     // tries to go past the left or right boundaries
                     this.movementStatus = "falling";
                 }
-
+                AssetManager.AssetManager.assets.bounce.soundSprite.play();
 
                 break;
             case "movingLeft":

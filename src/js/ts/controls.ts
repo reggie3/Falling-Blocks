@@ -61,6 +61,7 @@ export class Controls extends ThreeItem.ThreeItem {
             color: options && options.color || null
         });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
+        this.mesh.userData.id = this.name;
     }
 
     private createBoxMesh(options?) {
@@ -74,6 +75,7 @@ export class Controls extends ThreeItem.ThreeItem {
             color: options && options.color || null
         });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
+        this.mesh.userData.id = this.name;
     }
     private createCircleMesh(options?) {
         this.geometry = new THREE.CircleGeometry(options && options.size || null, options && options.segments || null);
@@ -82,6 +84,7 @@ export class Controls extends ThreeItem.ThreeItem {
             map: AssetManager.AssetManager.getAssetByTag(this.name).texture
         });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
+        this.mesh.userData.id = this.name;
     }
 
     update() {
@@ -152,13 +155,15 @@ export class Controls extends ThreeItem.ThreeItem {
     }
 
     // start the tweens associcated with pushing a button that is a THREE.Object3D
-    static pushButton(btn) {
+    static pushButton(btn, playButtonClick) {
         let tween = new TWEEN.Tween(btn.scale)
             .to({x: .9, y: .9}, 50)
             .repeat(1)
             .yoyo(true)
             .start();
-        AssetManager.AssetManager.assets.click.soundSprite.play();
+            if (playButtonClick === true) {
+                AssetManager.AssetManager.assets.click.soundSprite.play();
+            }
     }
 
 }

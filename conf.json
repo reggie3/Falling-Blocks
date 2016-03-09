@@ -23,13 +23,15 @@
         "css": "./src/css/*.css",
         "assets": "./src/assets/**/*",
         "typings": "./typings/**/*.d.ts"
+
     },
     "dist":{
         "base":"./dist/",
         "css":"./dist/css/",
         "js":"./dist/js/",
         "assets":"./dist/assets/",
-        "html":"./dist/"
+        "html":"./dist/",
+        "all":"./dist/**/*"
     }
 
 }

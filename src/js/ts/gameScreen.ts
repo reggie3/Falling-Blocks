@@ -1,27 +1,38 @@
 /// <reference path="./defs/three/three.d.ts" />
 /// <reference path="./defs/jquery/jquery.d.ts" />
+/// <reference path="./defs/hammer/hammer.d.ts" />
+/// <reference path="./defs/tween.js/tween.js.d.ts" />
 
+import * as TWEEN from "tween.js";
 import * as THREE from "three";
 import * as $ from "jquery";
+import * as Hammer from "hammerjs";
 
 // a game scene.  It will have the camera, lights, and scene graph
 export class Screen {
+    static sceneID: number = 0;
+    static screens = [];
+    static currentScreen;   // the currently displayed screen
+    static width: number;
+    static height: number;
+    static isEventsSetup = false;
+
     name: string;
     order: number;
     camera;
     lights = [];
-    static sceneID: number = 0;
-    static screens = [];
-    static currentScreen;   // the currently displayed screen
+
     scene;
     overlay;
     displayStatus: string = "hidden";
     dirLight;
     ambLight;
-    static width: number;
-    static height: number;
+
     prevScreen;
     nextScreen;
+
+    hammer; // hammer instance used to responsd to user inputs, shared amongst all screens
+    TWEEN = TWEEN;
 
     constructor(options?) {
         if (options.name ) {
@@ -51,20 +62,12 @@ export class Screen {
         //     1, 50 );
 
 
-        // LIGHTS
+        // ambient light common to all screens
         this.ambLight = new THREE.AmbientLight( 0x444444);
         this.ambLight.position.set( 0, 5, 5 );
         this.scene.add(this.ambLight );
         this.lights.push (this.ambLight);
 
-        // //
-        // this.dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
-        // this.dirLight.color.setHSL( 1, 1, 1 );
-        // this.dirLight.position.set( -0, 0, 0 );
-        // this.dirLight.position.multiplyScalar( 50 );
-        // this.scene.add(this.dirLight );
-
-        // console.log("scene " + Scene.sceneID  + " created");
         if (options.order) {
             Screen.screens[this.order] = this;
         }
@@ -73,6 +76,12 @@ export class Screen {
             // $("#" + [this.overlay]).hide();
         }
          Screen.sceneID++;
+
+        // set up hammer events and only do it the first time this constructor is called
+        if (!Screen.isEventsSetup) {
+            this.setupEvents();
+            Screen.isEventsSetup = true;
+        }
     }
 
     public static init() {
@@ -142,6 +151,35 @@ export class Screen {
             this.camera.position.y = y;
         if (z)
             this.camera.position.z = z;
+    }
+
+     setupEvents() {
+        this.hammer = new Hammer(document.body);
+        let that = this;
+        this.hammer.on("tap", function(event) {
+            that.hammerDispatch(event);
+            console.log("tap");
+        });
+        this.hammer.on("press", function(event) {
+            // console.log("press");
+            that.hammerDispatch(event);
+            console.log("down");
+        });
+        this.hammer.on("pressup", function(event) {
+            // console.log("press up");
+            that.hammerDispatch(event);
+            console.log("up");
+        });
+    }
+
+    // dispatch the hammer event to the current screen
+    hammerDispatch(event) {
+        // if ((!event.userData) || (!event.userData.handled)) {
+        //     if (Screen.getCurrentScreen().hammerEventReceived(event)){
+            Screen.getCurrentScreen().hammerEventReceived(event);
+               // event.userData = {handled: true};
+        //     }
+        // }
     }
 }
 

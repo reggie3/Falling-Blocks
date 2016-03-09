@@ -23,47 +23,36 @@ import AssetManager = require("./assetManager");
 import GameObject = require("./gameObject");
 import GameScreen = require("./gameScreen");
 import SettingsScreen = require("./settingsScreen");
+import CreditsScreen = require("./creditsScreen");
 import StartScreen = require("./startScreen");
 import LoadingScreen = require("./loadingScreen");
 import PlayScreen = require("./playScreen");
-import ThreeItem = require("./threeItem");
+
 import Candy = require("./candy");
 import Controls = require("./controls");
 import FallingItem = require("./fallingItem");
 
-let game;
+let game;   // game object
+let screens = {
+    playScreen: null,
+    loadingScreen: null,
+    startScreen: null,
+    settingsScreen: null,
+    creditsScreen: null
+};
 
-
-let playScreen;
-let loadingScreen;
-let startScreen;
-let settingsScreen;
-let threeItem;
 let clock;
-const dt = 1 / 60;
+
 const xPositions = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
 const numBlocksOnPlayfield = 10;
 const numBlocksAcrossScene = 20;
 let blockWidth = 10;
 
-let hammer; // use to catch mouse and touch events with Hammer
-let time;
-let delta;
+
 
 $(() => {
-    console.log("jquery & underscore loaded1.");
-    hammer = new Hammer(document.body);
-    hammer.on("tap", function(event) {
-        hammerEventReceived(event);
-    });
-    hammer.on("press", function(event) {
-        console.log("press");
-        hammerEventReceived(event);
-    });
-    hammer.on("pressup", function(event) {
-        console.log("press up");
-        hammerEventReceived(event);
-    });
+    console.log("starting game");
+
     createGame();
 });
 
@@ -73,7 +62,7 @@ function createGame() {
     blockWidth = Math.floor(GameScreen.Screen.getWidth() / numBlocksAcrossScene);
 
     // load the loading screen first, and pass it a callback that loads and creates everything else
-    loadingScreen = new LoadingScreen.LoadingScreen({
+    screens.loadingScreen = new LoadingScreen.LoadingScreen({
         name: "loadingScreen",
         overlay: "loadingOverlay",
         // order: 1,
@@ -82,11 +71,11 @@ function createGame() {
             width: GameScreen.Screen.getWidth(),
             height: GameScreen.Screen.getHeight()
         },
-        nextScreen: playScreen
+        nextScreen: screens.playScreen
     }, doPreloadAndCreateScreens);
 
     // show the loading screen
-    GameScreen.Screen.setCurrentcreen(loadingScreen);
+    GameScreen.Screen.setCurrentcreen(screens.loadingScreen);
 
     // render loop
     let render = function() {
@@ -102,7 +91,7 @@ function createGame() {
                 }
                 break;
             case "loadingScreen":
-                loadingScreen.update(game.clock.getDelta(), game.clock.getElapsedTime());
+                screens.loadingScreen.update(game.clock.getDelta(), game.clock.getElapsedTime());
             break;
         }
 
@@ -121,40 +110,48 @@ function doPreloadAndCreateScreens() {
             console.log(numberAssets + " assets");
 
             // the loading screen progress bar will increment for each asset and each of the screens
-             loadingScreen.initProgressBar(numberAssets + 3);
+             screens.loadingScreen.initProgressBar(numberAssets + (Object.keys(screens).length - 1));
         },
         function() {    // called when each asset is loaded
-             loadingScreen.updateProgress(1);
+             screens.loadingScreen.updateProgress(1);
         },
         function() {
             console.log("finished");
             // create the screens
-            playScreen = new PlayScreen.PlayScreen({
+            screens.playScreen = new PlayScreen.PlayScreen({
                 name: "playScreen",
                 overlay: "playScreenOverlay",
                 order: 1,
                 blockWidth: blockWidth,
-                prevScreen: loadingScreen
+                prevScreen: screens.loadingScreen
             });
-             loadingScreen.updateProgress(1);
-            startScreen = new StartScreen.StartScreen({
+             screens.loadingScreen.updateProgress(1);
+            screens.startScreen = new StartScreen.StartScreen({
                 name: "startScreen",
                 overlay: "startOverlay",
                 order: 0,
                 blockWidth: blockWidth
             });
-             loadingScreen.updateProgress(1);
-            settingsScreen = new SettingsScreen.SettingsScreen({
+             screens.loadingScreen.updateProgress(1);
+            screens.settingsScreen = new SettingsScreen.SettingsScreen({
                 name: "settingsScreen",
                 overlay: "settingsOverlay",
                 // order: 4,
                 blockWidth: blockWidth
             });
-            loadingScreen.updateProgress(1);
+            screens.loadingScreen.updateProgress(1);
+
+            screens.creditsScreen = new CreditsScreen.CreditsScreen({
+                name: "creditsScreen",
+                overlay: "creditsOverlay",
+                // order: 4,
+                blockWidth: blockWidth
+            });
+            screens.loadingScreen.updateProgress(1);
 
             // set up the next and prev screens for the individual screens
-            loadingScreen.nextScreen = playScreen;
-            playScreen.prevScreen = loadingScreen;
+            screens.loadingScreen.nextScreen = screens.playScreen;
+            screens.playScreen.prevScreen = screens.loadingScreen;
         });
 }
 
@@ -171,122 +168,9 @@ function createFallingItem(screen) {
             x: xPos,
             y: 20 * blockWidth,
             name: "candy",
-            screen: playScreen,
+            screen: screens.playScreen,
             customMaterial: true
         });
 
-    playScreen.add(candy);
-}
-
-
-/***********************************************************************
- * User defined event handlers
- */
-function hammerEventReceived(event) {
-    // output the type of event it was
-    // console.log(event.srcEvent + " received");
-    let tapPoint = new THREE.Vector2();
-    switch (event.pointerType) {
-        case "touch":
-        case "mouse":
-            tapPoint.x = event.center.x;
-            tapPoint.y = event.center.y;
-            break;
-    }
-    // console.log("touchpoint " + tapPoint.x + ", " + tapPoint.y);
-    let worldCoords = convertCoordsToThreescreen
-        (new THREE.Vector2(tapPoint.x, tapPoint.y));
-    // console.log("world Coords: " + worldCoords.x + ", " + worldCoords.y);
-
-    let raycaster = new THREE.Raycaster(); // create once
-    // raycasting code from each camera copied from here:
-    // http://stackoverflow.com/questions/25024044/three-js-raycasting-with-camera-as-origin
-    if (playScreen.camera instanceof THREE.OrthographicCamera) {
-        worldCoords.unproject(playScreen.camera);
-        let dir = new THREE.Vector3;
-        dir.set(0, 0, - 1).transformDirection(playScreen.camera.matrixWorld);
-        raycaster.set(worldCoords, dir);
-    }
-    // TODO: raycaster does not work with perspective camera
-    else if (playScreen
-        .camera instanceof THREE.PerspectiveCamera) {
-        worldCoords.unproject(playScreen.camera);
-        raycaster.set(playScreen.camera.position, worldCoords.sub(playScreen.camera.position).normalize());
-    }
-
-    let intersectionArray = raycaster.intersectObjects(Controls.Controls.meshes);
-    if (intersectionArray.length > 0) {
-        resolveControlInteraction(intersectionArray);
-    }
-
-}
-
-// /****************************************************
-//  * press event received
-//  */
-// function pressReceived(event) {
-//     console.log (event.type);
-//      let worldCoords = convertCoordsToThreescreen
-//         (new THREE.Vector2(event.center.x, event.center.y));
-
-//         let raycaster = new THREE.Raycaster(); // create once
-//         // raycasting code from each camera copied from here:
-//         // http://stackoverflow.com/questions/25024044/three-js-raycasting-with-camera-as-origin
-//         if (playScreen.camera instanceof THREE.OrthographicCamera) {
-//             worldCoords.unproject( playScreen.camera );
-//             let dir = new THREE.Vector3;
-//             dir.set( 0, 0, - 1 ).transformDirection( playScreen.camera.matrixWorld );
-//             raycaster.set( worldCoords, dir );
-//         }
-//         // TODO: raycaster does not work with perspective camera
-//         else if ( playScreen
-//         .camera instanceof THREE.PerspectiveCamera ) {
-//             worldCoords.unproject( playScreen.camera );
-//             raycaster.set( playScreen.camera.position, worldCoords.sub( playScreen.camera.position ).normalize());
-//         }
-
-//         let intersectionArray = raycaster.intersectObjects(Control.Control.meshes);
-//         if (intersectionArray.length > 0 ) {
-//             resolveControlInteraction(intersectionArray);
-//         }
-
-// }
-// function pressupReceived(event) {
-// }
-
-function convertCoordsToThreescreen
-    (coords: THREE.Vector2) {
-    let worldCoords = new THREE.Vector3(
-        (coords.x / window.innerWidth) * 2 - 1,
-        - (coords.y / window.innerHeight) * 2 + 1,
-        -1);
-
-    return worldCoords;
-}
-
-function resolveControlInteraction(intersectedObjects) {
-    // for (let i = 0; i < intersectedObjects.length; i++) {
-    //     // if a userData has a controlID member then we clicked on a control
-    //     if (intersectedObjects[i].object.userData.controlID) {
-
-    //     }
-    // }
-    if (intersectedObjects[0].object.userData.hasOwnProperty("controlID")) {
-        // get the control name
-        let controlName = Controls.Controls.getControlByID(intersectedObjects[0].object.userData.controlID).name;
-        switch (controlName) {
-            case "leftButton":
-                console.log("left");
-                FallingItem.FallingItem.addMove("left");
-                break;
-            case "rightButton":
-                console.log("right");
-                FallingItem.FallingItem.addMove("right");
-                break;
-            case "downButton":
-                console.log("down");
-                FallingItem.FallingItem.fallFaster = !FallingItem.FallingItem.fallFaster;
-                break;
-        }
-    }
+    screens.playScreen.add(candy);
 }

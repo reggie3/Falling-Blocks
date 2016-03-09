@@ -1,22 +1,20 @@
-/// <reference path="./defs/hammer/hammer.d.ts" />
-/// <reference path="./defs/tween.js/tween.js.d.ts" />
 
-import * as TWEEN from "tween.js";
+
+
 import * as THREE from "three";
 import GameScreen = require("./gameScreen");
 import AssetManager = require("./assetManager");
 import Utils = require("./utils");
 import Controls = require("./controls");
 import App = require("./app");
-import * as Hammer from "hammerjs";
+
 
 export class LoadingScreen extends GameScreen.Screen {
     static curProgressCounter = 0;
     static prevProgressCounter = 0;
 
     currentPgBar;
-    screenWidth: number;
-    screenHeight: number;
+
     pgBar = {
         mesh: null,
         geometry: null,
@@ -29,7 +27,7 @@ export class LoadingScreen extends GameScreen.Screen {
     textMesh;
     textMat;
     callback;
-    background = {
+    bg = {
         mesh: null,
         geo: null,
         mat: null,
@@ -49,36 +47,17 @@ export class LoadingScreen extends GameScreen.Screen {
 
     minX = -100;   // the width of the pogress bar will be twice the absolute value of this number
     numIncrements = 4;
-    hammer; // hammer.js instance
     touchableMeshes = []; // an array of touchable meshes
 
 
 
     constructor(options, callback) {
         super(options);
-        this.screenWidth = options.screenDim.width;
-        this.screenHeight = options.screenDim.height;
+
         this.callback = callback;
 
         this.loadLocalAssets();
-        this.setupEvents();
-    }
 
-
-    setupEvents() {
-        this.hammer = new Hammer(document.body);
-        let that = this;
-        this.hammer.on("tap", function(event) {
-            that.hammerEventReceived(event);
-        });
-        this.hammer.on("press", function(event) {
-            console.log("press");
-            that.hammerEventReceived(event);
-        });
-        this.hammer.on("pressup", function(event) {
-            console.log("press up");
-            that.hammerEventReceived(event);
-        });
     }
 
     loadLocalAssets () {
@@ -122,22 +101,19 @@ export class LoadingScreen extends GameScreen.Screen {
                 AssetManager.AssetManager.assets.bkgLoading.material = texture;
                 this.itemsLoaded++;
                 this.checkIfFinished(this.callback);
-                this.background.geo = new THREE.PlaneGeometry(this.screenWidth, this.screenHeight);
-                this.background.mat = new THREE.MeshBasicMaterial({
+                this.bg.geo = new THREE.PlaneGeometry(GameScreen.Screen.width, GameScreen.Screen.height);
+                this.bg.mat = new THREE.MeshBasicMaterial({
                     map: texture
                 });
-                this.background.mesh = new THREE.Mesh(this.background.geo, this.background.mat);
-                this.background.mesh.position.z = -5;
-                this.scene.add(this.background.mesh);
+                this.bg.mesh = new THREE.Mesh(this.bg.geo, this.bg.mat);
+                this.bg.mesh.position.z = -5;
+                this.scene.add(this.bg.mesh);
             }.bind(this));
 
         this.createLights();
 
         // center the camera
         this.positionCamera(0, 10, 18);
-
-        // this.testProgressBar();
-
     }
 
     // check to see if we are done loading everything that needs to be loaded for this screen
@@ -170,19 +146,13 @@ export class LoadingScreen extends GameScreen.Screen {
                 this.showGameStart();
                 break;
         }
-        TWEEN.update();
+        // need to use a this.TWEEN to point to the TWEEN object that is referenced in the superclass
+        this.TWEEN.update();
     }
 
-    testProgressBar() {
-        let increment = 0;
-        for (let i = 0; i < this.numIncrements; i++) {
-            setTimeout(this.updateProgress(i + 1), 2000);
-        }
 
-    }
-
+    // called in order to denote progress by the process that is being tracked
     updateProgress(increment?) {
-
         // LoadingScreen.prevLoadedCounter = LoadingScreen.loadedCounter;
         LoadingScreen.curProgressCounter += increment;
     }
@@ -233,17 +203,19 @@ export class LoadingScreen extends GameScreen.Screen {
     }
 
     hammerEventReceived(event) {
-        // console.log("hammer");
-        let touched = Utils.Utils.hammerEventReceived(event, this.camera, this.touchableMeshes);
+        // only acknowledge events if this screen is the current game screen
+            let touched = Utils.Utils.hammerEventReceived(event, this.camera, this.touchableMeshes);
 
-        if (touched.length > 0) {
-            switch (touched[0].object.userData.id) {
-                case "startButton":
-                    console.log("start");
-                    Controls.Controls.pushButton(this.startButton);
-                    GameScreen.Screen.setCurrentcreen(this.nextScreen);
-                    break;
+            if (touched.length > 0) {
+                switch (touched[0].object.userData.id) {
+                    case "startButton":
+                        console.log("start");
+                        Controls.Controls.pushButton(this.startButton, true);
+                        GameScreen.Screen.setCurrentcreen(this.nextScreen);
+                        return true;
+                        break;
+                }
             }
-        }
+
     }
 }
